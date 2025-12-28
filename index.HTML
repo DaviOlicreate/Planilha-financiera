@@ -395,27 +395,40 @@
                 </div>
             </div>
 
-            <!-- Charts Row 1 -->
+            <!-- Charts Row 1: Flow + Top Categories (Restored) -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Bar+Line Main -->
                 <div class="glass p-6 rounded-3xl lg:col-span-2">
-                    <h4 class="font-bold text-white mb-1">Gastos vs Investimentos</h4>
+                    <h4 class="font-bold text-white mb-1">Fluxo Financeiro</h4>
                     <p class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Histórico Anual</p>
                     <div class="h-[300px]">
                         <canvas id="chart-main"></canvas>
                     </div>
                 </div>
-                <!-- Categories Bar -->
+                <!-- Top Categories (Restored Doughnut) -->
                 <div class="glass p-6 rounded-3xl">
-                    <h4 id="chart-cat-title" class="font-bold text-white mb-1">Top Categorias (Linha)</h4>
-                    <p id="chart-cat-subtitle" class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Total do período: R$ 0,00</p>
+                    <h4 class="font-bold text-white mb-1">Top Categorias</h4>
+                    <p class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Maiores Despesas (Mês)</p>
                     <div class="h-[300px] flex items-center justify-center">
-                        <canvas id="chart-cat"></canvas>
+                        <canvas id="chart-top-cat"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- Charts Row 2 -->
+            <!-- Charts Row 2: Timeline Details (Full Width) -->
+            <div class="glass p-6 rounded-3xl">
+                <div class="flex justify-between items-end mb-6">
+                    <div>
+                        <h4 class="font-bold text-white mb-1">Detalhamento de Despesas (Linha do Tempo)</h4>
+                        <p id="chart-timeline-total" class="text-xs text-slate-400 uppercase tracking-wider">Total do período: R$ 0,00</p>
+                    </div>
+                </div>
+                <div class="h-[300px] w-full">
+                    <canvas id="chart-timeline"></canvas>
+                </div>
+            </div>
+
+            <!-- Charts Row 3: Banks & Revenue -->
              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="glass p-6 rounded-3xl">
                     <h4 class="font-bold text-white mb-1">Gastos por Banco</h4>
@@ -882,7 +895,7 @@
                 }
             };
 
-            // Custom Plugin to Draw Data Labels above points
+            // Custom Plugin to Draw Data Labels above points (Only used for Timeline)
             const datalabelsPlugin = {
                 id: 'datalabels',
                 afterDatasetsDraw(chart, args, options) {
@@ -908,9 +921,7 @@
             };
 
             // Chart D: Gastos vs Investimentos (Anual) - ID: chart-main
-            // Agrupar dados anuais por mês
             const monthsMap = {};
-            // Inicializa meses
             for(let i=1; i<=12; i++) {
                 const key = `${currentYear}-${String(i).padStart(2,'0')}`;
                 monthsMap[key] = { expense: 0, invest: 0 };
@@ -967,34 +978,50 @@
                 options: commonOptions
             });
 
-            // Chart A: Detalhamento de Despesas (Linha - Mês) - ID: chart-cat
-            // Substitui o antigo "Top Categories"
-            // Filter all month expenses
+            // NEW Chart: Top Categories (Restored) - ID: chart-top-cat
             const expenses = monthData.filter(t => t.type === 'despesa');
-            
-            // Group by Category
             const catMap = {};
             expenses.forEach(t => {
                 const cat = t.category || 'Outros'; 
                 catMap[cat] = (catMap[cat] || 0) + t.value;
             });
+            const sortedCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 6);
 
-            // Convert to array and sort by Value (Descending)
-            const sortedCats = Object.entries(catMap)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 10); 
+            if(chartInstances.topCat) chartInstances.topCat.destroy();
+            chartInstances.topCat = new Chart(document.getElementById('chart-top-cat'), {
+                type: 'doughnut',
+                data: {
+                    labels: sortedCats.map(x => x[0]),
+                    datasets: [{
+                        data: sortedCats.map(x => x[1]),
+                        backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#64748b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { position: 'right', labels: { color: '#cbd5e1' } },
+                        tooltip: commonOptions.plugins.tooltip
+                    }
+                }
+            });
 
-            // Prepare Data
-            const labelsLine = sortedCats.map(item => item[0]);
-            const dataLine = sortedCats.map(item => item[1]);
-            const totalLine = expenses.reduce((sum, t) => sum + t.value, 0);
+            // Chart A (Renamed): Timeline Detail (Yellow Line) - ID: chart-timeline
+            // Filter all month expenses, sort by Date
+            const timelineExpenses = monthData.filter(t => t.type === 'despesa').sort((a,b) => new Date(a.date) - new Date(b.date));
+            
+            const labelsLine = timelineExpenses.map(t => `${t.title} (${t.date.split('-')[2]}/${t.date.split('-')[1]})`);
+            const dataLine = timelineExpenses.map(t => t.value);
+            const totalLine = dataLine.reduce((a,b) => a+b, 0);
 
             // Update Totalizer in DOM
             const fmt = new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'});
-            document.getElementById('chart-cat-subtitle').textContent = `Total do período: ${fmt.format(totalLine)}`;
+            document.getElementById('chart-timeline-total').textContent = `Total do período: ${fmt.format(totalLine)}`;
 
-            if(chartInstances.cat) chartInstances.cat.destroy();
-            chartInstances.cat = new Chart(document.getElementById('chart-cat'), {
+            if(chartInstances.timeline) chartInstances.timeline.destroy();
+            chartInstances.timeline = new Chart(document.getElementById('chart-timeline'), {
                 type: 'line',
                 plugins: [datalabelsPlugin], // Activate custom plugin
                 data: {
@@ -1017,7 +1044,7 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
-                    layout: { padding: { top: 20 } }, // Space for labels
+                    layout: { padding: { top: 20 } },
                     plugins: { 
                         legend: { display: false },
                         tooltip: {
@@ -1037,18 +1064,11 @@
                     scales: {
                         y: { 
                             grid: { color: '#334155', borderDash: [5, 5] }, 
-                            ticks: { 
-                                color: '#94a3b8', 
-                                callback: (val) => val.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0}) 
-                            } 
+                            ticks: { color: '#94a3b8', callback: (val) => val.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0}) } 
                         },
                         x: { 
                             grid: { display: false }, 
-                            ticks: { 
-                                color: '#94a3b8',
-                                maxRotation: 45,
-                                minRotation: 30
-                            } 
+                            ticks: { color: '#94a3b8', maxRotation: 45, minRotation: 30 } 
                         }
                     }
                 }
@@ -1088,7 +1108,6 @@
             });
 
             // Chart E: Ranking de Receitas (Mês) - ID: chart-type
-            // Título precisa ser ajustado via JS pois HTML é fixo
             document.getElementById('title-chart-type').textContent = "Fontes de Receita";
             
             const recMap = {};
@@ -1100,7 +1119,7 @@
 
             if(chartInstances.type) chartInstances.type.destroy();
             chartInstances.type = new Chart(document.getElementById('chart-type'), {
-                type: 'bar', // Mudança de Pie para Horizontal Bar para facilitar leitura
+                type: 'bar', // Horizontal Bar
                 data: {
                     labels: sortedRec.map(x => x[0]),
                     datasets: [{
