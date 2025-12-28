@@ -247,6 +247,15 @@
                         </div>
                     </div>
 
+                    <!-- Configurações (Novas) -->
+                    <div onclick="openSettings()" class="menu-card glass p-8 rounded-3xl cursor-pointer group relative overflow-hidden flex flex-col items-center justify-center text-center">
+                        <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-white mb-3 group-hover:rotate-90 transition-transform">
+                            <i class="fa-solid fa-gear"></i>
+                        </div>
+                        <h3 class="text-white font-bold">Configurações</h3>
+                        <p class="text-xs text-slate-400 mt-1">Editar Bancos e Categorias</p>
+                    </div>
+
                     <!-- Importar Excel -->
                     <label class="menu-card glass p-8 rounded-3xl cursor-pointer group relative overflow-hidden flex flex-col items-center justify-center text-center border border-dashed border-slate-600 hover:border-brand-accent hover:bg-slate-800/50">
                         <input type="file" id="file-upload" accept=".xlsx, .xls, .csv" class="hidden">
@@ -362,7 +371,6 @@
 
         <!-- Dashboard Content -->
         <div class="p-8 lg:p-16 max-w-[1600px] mx-auto mt-12 space-y-8 animate-slide-up">
-            
             <!-- KPIs -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <!-- Saldo -->
@@ -373,6 +381,73 @@
                     <div class="mt-4 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
                         <div class="h-full bg-brand-accent w-full"></div>
                     </div>
+                </div>
+                <!-- Receitas -->
+                <div class="glass p-6 rounded-3xl relative overflow-hidden">
+                    <div class="absolute -right-6 -top-6 w-32 h-32 bg-brand-receita/10 rounded-full blur-2xl"></div>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Entradas</p>
+                    <h3 id="dash-rec" class="text-4xl font-display font-bold text-brand-receita">R$ 0,00</h3>
+                    <div class="mt-4 flex items-center gap-2 text-xs text-brand-receita">
+                        <i class="fa-solid fa-arrow-trend-up"></i> <span>Acumulado</span>
+                    </div>
+                </div>
+                <!-- Despesas -->
+                <div class="glass p-6 rounded-3xl relative overflow-hidden">
+                    <div class="absolute -right-6 -top-6 w-32 h-32 bg-brand-despesa/10 rounded-full blur-2xl"></div>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Saídas</p>
+                    <h3 id="dash-desp" class="text-4xl font-display font-bold text-brand-despesa">R$ 0,00</h3>
+                    <div class="mt-4 flex items-center gap-2 text-xs text-brand-despesa">
+                        <i class="fa-solid fa-arrow-trend-down"></i> <span>Acumulado</span>
+                    </div>
+                </div>
+                <!-- Economia -->
+                <div class="glass p-6 rounded-3xl relative overflow-hidden flex flex-col justify-center items-center">
+                    <div class="relative w-24 h-24">
+                        <svg class="w-full h-full transform -rotate-90">
+                            <circle cx="48" cy="48" r="40" stroke="#1e293b" stroke-width="8" fill="transparent"></circle>
+                            <circle id="circle-progress" cx="48" cy="48" r="40" stroke="#3b82f6" stroke-width="8" fill="transparent" stroke-dasharray="251.2" stroke-dashoffset="251.2" class="transition-all duration-1000"></circle>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center flex-col">
+                            <span id="dash-eco-perc" class="text-lg font-bold text-white">0%</span>
+                        </div>
+                    </div>
+                    <p class="mt-2 text-xs text-slate-400 uppercase font-bold">Taxa de Poupança</p>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Bar Chart Main -->
+                <div class="glass p-6 rounded-3xl lg:col-span-2">
+                    <h4 class="font-bold text-white mb-6">Fluxo Financeiro Anual</h4>
+                    <div class="h-[300px]">
+                        <canvas id="chart-main"></canvas>
+                    </div>
+                </div>
+                <!-- Doughnut Categories -->
+                <div class="glass p-6 rounded-3xl">
+                    <h4 class="font-bold text-white mb-6">Top Despesas (Categoria)</h4>
+                    <div class="h-[300px] flex items-center justify-center">
+                        <canvas id="chart-cat"></canvas>
+                    </div>
+                </div>
+            </div>
+
+             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="glass p-6 rounded-3xl">
+                    <h4 class="font-bold text-white mb-6">Gastos por Banco</h4>
+                    <div class="h-[250px]">
+                        <canvas id="chart-bank"></canvas>
+                    </div>
+                </div>
+                <div class="glass p-6 rounded-3xl">
+                    <h4 class="font-bold text-white mb-6">Tipos de Despesa (50/30/20)</h4>
+                    <div class="h-[250px]">
+                        <canvas id="chart-type"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
                 </div>
                 <!-- Receitas -->
                 <div class="glass p-6 rounded-3xl relative overflow-hidden">
@@ -509,11 +584,113 @@
         </div>
     </div>
 
+    <!-- MODAL SETTINGS (NOVO) -->
+    <div id="settings-modal" class="fixed inset-0 z-[75] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('settings-modal')"></div>
+        <div class="relative w-full max-w-2xl glass bg-[#0f172a] rounded-2xl shadow-2xl border border-slate-700 overflow-hidden animate-slide-up flex flex-col max-h-[80vh]">
+            <div class="bg-slate-900/50 px-6 py-4 border-b border-slate-700 flex justify-between items-center">
+                <h3 class="font-display text-xl font-bold text-white">Configurações de Listas</h3>
+                <button onclick="closeModal('settings-modal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            
+            <div class="p-6 flex-1 overflow-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Config Bancos -->
+                    <div>
+                        <h4 class="text-brand-accent font-bold mb-3 flex items-center gap-2"><i class="fa-solid fa-building-columns"></i> Bancos</h4>
+                        <div class="flex gap-2 mb-4">
+                            <input type="text" id="new-bank" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-accent outline-none" placeholder="Novo banco...">
+                            <button onclick="addSettingItem('banks', 'new-bank')" class="bg-brand-accent hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                        <ul id="list-banks" class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                            <!-- JS Populates -->
+                        </ul>
+                    </div>
+
+                    <!-- Config Categorias -->
+                    <div>
+                        <h4 class="text-brand-despesa font-bold mb-3 flex items-center gap-2"><i class="fa-solid fa-tag"></i> Categorias</h4>
+                        <div class="flex gap-2 mb-4">
+                            <input type="text" id="new-cat" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-despesa outline-none" placeholder="Nova categoria...">
+                            <button onclick="addSettingItem('categories', 'new-cat')" class="bg-brand-despesa hover:bg-rose-600 text-white px-3 py-2 rounded-lg text-sm"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                        <ul id="list-categories" class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                            <!-- JS Populates -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL TRANSACTION (Unified) -->
+    <div id="modal" class="fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('modal')"></div>
+        <div class="relative w-full max-w-lg glass bg-[#0f172a] rounded-2xl shadow-2xl border border-slate-700 overflow-hidden animate-slide-up">
+            <div class="bg-slate-900/50 px-6 py-4 border-b border-slate-700 flex justify-between items-center">
+                <h3 id="modal-title" class="font-display text-xl font-bold text-white">Nova Transação</h3>
+                <button onclick="closeModal('modal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            
+            <form id="form-transaction" class="p-6 space-y-4">
+                <input type="hidden" id="form-type">
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Descrição / Origem</label>
+                    <input type="text" id="form-desc" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="Ex: Salário, Mercado...">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Valor (R$)</label>
+                        <input type="text" id="form-val" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="0,00" oninput="formatCurrencyInput(this)">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Data</label>
+                        <input type="date" id="form-date" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all cursor-pointer">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Banco / Instituição</label>
+                        <input type="text" id="form-bank" list="bank-list" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="Selecione ou digite...">
+                        <datalist id="bank-list">
+                            <!-- Populated dynamically from Settings -->
+                        </datalist>
+                    </div>
+                    <!-- Campos Dinâmicos (Categoria/Definição) -->
+                    <div id="field-cat-container">
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Categoria</label>
+                        <input type="text" id="form-cat" list="cat-list" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="Selecione ou digite...">
+                        <datalist id="cat-list">
+                            <!-- Populated dynamically from Settings -->
+                        </datalist>
+                    </div>
+                </div>
+
+                <!-- Campo Extra Despesa -->
+                <div id="field-def-container" class="hidden">
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Definição (Regra 50/30/20)</label>
+                    <select id="form-def" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all cursor-pointer appearance-none">
+                        <option value="Necessidades (50%)">Necessidades (50%)</option>
+                        <option value="Desejos (30%)">Desejos (30%)</option>
+                        <option value="Poupança/Dívidas (20%)">Poupança/Dívidas (20%)</option>
+                    </select>
+                </div>
+
+                <button type="submit" id="btn-save" class="w-full bg-brand-accent hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/20 transition-all mt-4 transform active:scale-[0.98]">
+                    Salvar Registro
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- LOGIC -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, where, Timestamp, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, where, Timestamp, writeBatch, getDocs, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBWA5-o7lvPv7zybt1B-k7HdKcgPNYQOEc",
@@ -531,20 +708,22 @@
         let currentUser = null;
         let transactions = [];
         let chartInstances = {};
-
-        // Default Options
-        const defaultBanks = ["Nubank", "Inter", "Itaú", "Bradesco", "Caixa", "Santander", "Carteira"];
-        const defaultCats = ["Moradia", "Alimentação", "Transporte", "Lazer", "Saúde", "Educação", "Investimento", "Outros"];
-        const defaultDefs = ["Necessidades (50%)", "Desejos (30%)", "Poupança/Dívidas (20%)"];
+        
+        // Configurable Lists State
+        let userSettings = {
+            banks: ["Nubank", "Inter", "Itaú", "Bradesco", "Caixa", "Santander", "Carteira"],
+            categories: ["Moradia", "Alimentação", "Transporte", "Lazer", "Saúde", "Educação", "Investimento", "Outros"]
+        };
 
         // --- AUTH ---
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if(user) {
                 currentUser = user;
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('app-content').classList.remove('hidden');
                 document.getElementById('user-name').textContent = user.displayName.split(' ')[0];
                 document.getElementById('user-avatar').src = user.photoURL;
+                await initSettings();
                 loadData();
             } else {
                 currentUser = null;
@@ -556,36 +735,94 @@
         window.signOut = () => signOut(auth);
         document.getElementById('btn-login-google').addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()));
 
-        // --- DATA LOAD ---
-        function loadData() {
-            const q = query(collection(db, "transacoes_financeiras"), orderBy("date", "desc"));
-            onSnapshot(q, (snap) => {
-                transactions = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(t => t.uid === currentUser.uid);
-                updateDropdowns(transactions); // Update dynamic lists based on data
-                updateInterface();
-            });
+        // --- SETTINGS MANAGEMENT ---
+        async function initSettings() {
+            if(!currentUser) return;
+            const ref = doc(db, "user_settings", currentUser.uid);
+            const snap = await getDoc(ref);
+            
+            if(snap.exists()) {
+                const data = snap.data();
+                if(data.banks) userSettings.banks = data.banks;
+                if(data.categories) userSettings.categories = data.categories;
+            } else {
+                // Create default settings if not exists
+                await setDoc(ref, userSettings);
+            }
+            updateDropdowns(); // Init dropdowns
         }
 
-        // --- DYNAMIC DROPDOWNS ---
-        function updateDropdowns(data) {
-            // Extract unique values from existing data
-            const banks = new Set([...defaultBanks, ...data.map(t => t.bank).filter(Boolean)]);
-            const cats = new Set([...defaultCats, ...data.map(t => t.category).filter(Boolean)]);
-            const defs = new Set([...defaultDefs, ...data.map(t => t.definition).filter(Boolean)]);
+        async function saveSettings() {
+            if(!currentUser) return;
+            await setDoc(doc(db, "user_settings", currentUser.uid), userSettings, {merge: true});
+            updateDropdowns();
+            renderSettingsList();
+        }
 
-            const populate = (id, set) => {
+        window.openSettings = () => {
+            document.getElementById('settings-modal').classList.remove('hidden');
+            renderSettingsList();
+        }
+
+        window.addSettingItem = async (type, inputId) => {
+            const input = document.getElementById(inputId);
+            const val = input.value.trim();
+            if(!val) return;
+            
+            if(!userSettings[type].includes(val)) {
+                userSettings[type].push(val);
+                userSettings[type].sort(); // Keep sorted
+                input.value = '';
+                await saveSettings();
+            }
+        }
+
+        window.removeSettingItem = async (type, val) => {
+            if(confirm(`Remover "${val}" da lista?`)) {
+                userSettings[type] = userSettings[type].filter(item => item !== val);
+                await saveSettings();
+            }
+        }
+
+        function renderSettingsList() {
+            const render = (type, listId) => {
+                const ul = document.getElementById(listId);
+                ul.innerHTML = '';
+                userSettings[type].forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = "flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700";
+                    li.innerHTML = `
+                        <span class="text-sm text-slate-300">${item}</span>
+                        <button onclick="removeSettingItem('${type}', '${item}')" class="text-slate-500 hover:text-rose-500 transition-colors"><i class="fa-solid fa-trash-can"></i></button>
+                    `;
+                    ul.appendChild(li);
+                });
+            };
+            render('banks', 'list-banks');
+            render('categories', 'list-categories');
+        }
+
+        function updateDropdowns() {
+            const populate = (id, list) => {
                 const el = document.getElementById(id);
                 el.innerHTML = '';
-                Array.from(set).sort().forEach(val => {
+                list.forEach(val => {
                     const opt = document.createElement('option');
                     opt.value = val;
                     el.appendChild(opt);
                 });
             };
+            populate('bank-list', userSettings.banks);
+            populate('cat-list', userSettings.categories);
+        }
 
-            populate('bank-list', banks);
-            populate('cat-list', cats);
-            populate('def-list', defs);
+        // --- DATA LOAD ---
+        function loadData() {
+            const q = query(collection(db, "transacoes_financeiras"), orderBy("date", "desc"));
+            onSnapshot(q, (snap) => {
+                transactions = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(t => t.uid === currentUser.uid);
+                updateInterface();
+            });
         }
 
         // --- CURRENCY MASK ---
@@ -852,23 +1089,28 @@
         window.closeDashboardFull = () => document.getElementById('dashboard-full').classList.remove('active');
 
         window.openModal = (type) => {
-            document.getElementById('modal').classList.remove('hidden');
-            document.getElementById('form-type').value = type;
-            document.getElementById('modal-title').textContent = type === 'receita' ? 'Nova Receita' : 'Nova Despesa';
-            document.getElementById('modal-title').className = `font-display text-xl font-bold ${type === 'receita' ? 'text-brand-receita' : 'text-brand-despesa'}`;
-            document.getElementById('btn-save').className = `w-full font-bold py-4 rounded-xl shadow-lg transition-all mt-4 text-white ${type === 'receita' ? 'bg-brand-receita hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-brand-despesa hover:bg-rose-600 shadow-rose-500/20'}`;
-            
-            // Toggle Fields
-            if(type === 'receita') {
-                document.getElementById('field-cat-container').classList.add('hidden');
-                document.getElementById('field-def-container').classList.add('hidden');
-            } else {
-                document.getElementById('field-cat-container').classList.remove('hidden');
-                document.getElementById('field-def-container').classList.remove('hidden');
+            const modal = document.getElementById('modal');
+            if(modal) {
+                modal.classList.remove('hidden');
+                document.getElementById('form-type').value = type;
+                document.getElementById('modal-title').textContent = type === 'receita' ? 'Nova Receita' : 'Nova Despesa';
+                document.getElementById('modal-title').className = `font-display text-xl font-bold ${type === 'receita' ? 'text-brand-receita' : 'text-brand-despesa'}`;
+                document.getElementById('btn-save').className = `w-full font-bold py-4 rounded-xl shadow-lg transition-all mt-4 text-white ${type === 'receita' ? 'bg-brand-receita hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-brand-despesa hover:bg-rose-600 shadow-rose-500/20'}`;
+                
+                // Toggle Fields
+                if(type === 'receita') {
+                    document.getElementById('field-cat-container').classList.add('hidden');
+                    document.getElementById('field-def-container').classList.add('hidden');
+                } else {
+                    document.getElementById('field-cat-container').classList.remove('hidden');
+                    document.getElementById('field-def-container').classList.remove('hidden');
+                }
+                document.getElementById('form-date').valueAsDate = new Date();
             }
-            document.getElementById('form-date').valueAsDate = new Date();
         }
-        window.closeModal = () => document.getElementById('modal').classList.add('hidden');
+        window.closeModal = (modalId) => {
+            document.getElementById(modalId).classList.add('hidden');
+        }
 
         // --- FORM SUBMIT ---
         document.getElementById('form-transaction').addEventListener('submit', async (e) => {
@@ -897,7 +1139,7 @@
             }
 
             await addDoc(collection(db, "transacoes_financeiras"), data);
-            closeModal();
+            closeModal('modal');
             document.getElementById('form-transaction').reset();
         });
 
