@@ -407,8 +407,8 @@
                 </div>
                 <!-- Categories Bar -->
                 <div class="glass p-6 rounded-3xl">
-                    <h4 class="font-bold text-white mb-1">Top Despesas</h4>
-                    <p class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Por Categoria (Mês)</p>
+                    <h4 id="chart-cat-title" class="font-bold text-white mb-1">Detalhamento de Despesas</h4>
+                    <p id="chart-cat-subtitle" class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Total do período: R$ 0,00</p>
                     <div class="h-[300px] flex items-center justify-center">
                         <canvas id="chart-cat"></canvas>
                     </div>
@@ -882,6 +882,31 @@
                 }
             };
 
+            // Custom Plugin to Draw Data Labels above points
+            const datalabelsPlugin = {
+                id: 'datalabels',
+                afterDatasetsDraw(chart, args, options) {
+                    const { ctx } = chart;
+                    ctx.save();
+                    chart.data.datasets.forEach((dataset, i) => {
+                        const meta = chart.getDatasetMeta(i);
+                        meta.data.forEach((element, index) => {
+                            const data = dataset.data[index];
+                            if(data !== null && data !== undefined) {
+                                const valueStr = new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(data);
+                                ctx.font = 'bold 10px Inter';
+                                ctx.fillStyle = '#cbd5e1'; // Slate-300
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'bottom';
+                                // Draw text slightly above the point
+                                ctx.fillText(valueStr, element.x, element.y - 10);
+                            }
+                        });
+                    });
+                    ctx.restore();
+                }
+            };
+
             // Chart D: Gastos vs Investimentos (Anual) - ID: chart-main
             // Agrupar dados anuais por mês
             const monthsMap = {};
@@ -942,34 +967,78 @@
                 options: commonOptions
             });
 
-            // Chart A: Top Despesas por Categoria (Mês) - ID: chart-cat
-            // Agrupar
-            const catMap = {};
-            monthData.filter(t => t.type === 'despesa' && t.category !== 'Investimento').forEach(t => {
-                const c = t.category || 'Outros';
-                catMap[c] = (catMap[c] || 0) + t.value;
-            });
+            // Chart A: Detalhamento de Despesas (Linha - Mês) - ID: chart-cat
+            // Substitui o antigo "Top Categories"
+            // Filter all month expenses, sort by Date
+            const monthExpenses = monthData.filter(t => t.type === 'despesa').sort((a,b) => new Date(a.date) - new Date(b.date));
             
-            // Sort & Top 5
-            const sortedCats = Object.entries(catMap).sort((a,b) => b[1] - a[1]).slice(0, 6);
-            
+            // Prepare Data
+            const labelsLine = monthExpenses.map(t => t.title);
+            const dataLine = monthExpenses.map(t => t.value);
+            const totalLine = dataLine.reduce((a,b) => a+b, 0);
+
+            // Update Totalizer in DOM
+            const fmt = new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'});
+            document.getElementById('chart-cat-subtitle').textContent = `Total do período: ${fmt.format(totalLine)}`;
+
             if(chartInstances.cat) chartInstances.cat.destroy();
             chartInstances.cat = new Chart(document.getElementById('chart-cat'), {
-                type: 'bar',
+                type: 'line',
+                plugins: [datalabelsPlugin], // Activate custom plugin
                 data: {
-                    labels: sortedCats.map(x => x[0]),
+                    labels: labelsLine,
                     datasets: [{
-                        label: 'Valor Gasto',
-                        data: sortedCats.map(x => x[1]),
-                        backgroundColor: [
-                            '#ef4444', '#f97316', '#eab308', '#84cc16', '#14b8a6', '#64748b'
-                        ],
-                        borderRadius: 6
+                        label: 'Valor',
+                        data: dataLine,
+                        borderColor: '#facc15', // Yellow-400
+                        backgroundColor: '#facc15',
+                        borderWidth: 2,
+                        tension: 0.4, // Smooth curve
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#facc15',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 1
                     }]
                 },
                 options: {
-                    ...commonOptions,
-                    plugins: { legend: { display: false } } // Hide legend for cleaner look
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    layout: { padding: { top: 20 } }, // Space for labels
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: true,
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#cbd5e1',
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: function(context) {
+                                    return fmt.format(context.parsed.y);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            grid: { color: '#334155', borderDash: [5, 5] }, 
+                            ticks: { 
+                                color: '#94a3b8', 
+                                callback: (val) => val.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0}) 
+                            } 
+                        },
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { 
+                                color: '#94a3b8',
+                                maxRotation: 45,
+                                minRotation: 30
+                            } 
+                        }
+                    }
                 }
             });
 
