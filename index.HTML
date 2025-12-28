@@ -605,40 +605,41 @@
         const gaugeNeedle = {
             id: 'gaugeNeedle',
             afterDatasetDraw(chart, args, options) {
-                const { ctx, config, data, chartArea: { top, bottom, left, right, width, height } } = chart;
+                const { ctx, data, chartArea: { width, height } } = chart;
                 ctx.save();
                 
-                // Get target from dataset meta
-                const maxVal = data.datasets[0].maxVal || 1;
-                const needleValue = data.datasets[0].needleValue || 0;
+                const needleValue = data.datasets[0].needleValue;
+                const maxVal = data.datasets[0].maxVal;
                 
-                // Map value to angle
-                let percentage = needleValue / maxVal; 
-                
-                if(percentage > 1) percentage = 1; 
+                let percentage = needleValue / maxVal;
+                if(percentage > 1) percentage = 1;
                 if(percentage < 0) percentage = 0;
-
-                const angle = Math.PI + (percentage * Math.PI); // Start at PI (Left) -> 2PI (Right)
-
+                
+                // ChartJS circumference 180, rotation 270 (starts at 9 o'clock)
+                const angle = Math.PI + (percentage * Math.PI);
+                
                 const cx = width / 2;
-                const cy = chart._metasets[0].data[0].y;
+                const cy = chart._metasets[0].data[0].y; // Vertical center of the donut shape
 
-                // Draw Needle
+                // Translate to center
                 ctx.translate(cx, cy);
                 ctx.rotate(angle);
+                
+                // Draw Needle (Triangle)
                 ctx.beginPath();
-                ctx.moveTo(0, -2); // Thickness at pivot
-                ctx.lineTo(height - (ctx.canvas.offsetTop + 40), 0); // Length adjust
-                ctx.lineTo(0, 2);
-                ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#334155';
+                ctx.moveTo(0, -3); // Width at base
+                ctx.lineTo(height/2 - 20, 0); // Tip length
+                ctx.lineTo(0, 3); // Width at base
+                ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#1e293b';
                 ctx.fill();
                 
-                // Draw Pivot Dot
-                ctx.rotate(-angle);
+                // Draw Pivot Circle
+                ctx.rotate(-angle); // Reset rotation to draw circle flat
                 ctx.beginPath();
-                ctx.arc(0, 0, 4, 0, 10);
-                ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#334155';
+                ctx.arc(0, 0, 6, 0, Math.PI * 2);
+                ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#1e293b';
                 ctx.fill();
+                
                 ctx.restore();
             }
         };
@@ -757,31 +758,30 @@
                 }
             });
 
-            // 3. Gauge Despesas (Dynamic Goal)
-            // Goal is targetGasto. Zones relative to 100% of target? 
-            // Let's visualize risk: 
-            // 0-75% (Green), 75-100% (Yellow), >100% (Red)
-            const gaugeMaxGasto = targetGasto > 0 ? targetGasto : 1000; // fallback visual max
-            const percGastoVal = Math.min((totalDespesaMonth / gaugeMaxGasto) * 100, 100);
+            // 3. Gauge Despesas (Dynamic Goal - Minimalist Style)
+            // Zones: 0-75% (Green), 75-90% (Yellow), 90-100% (Red)
+            const gaugeMaxGasto = targetGasto > 0 ? targetGasto : 1000; 
             
             charts.gaugeDespesas = new Chart(document.getElementById('gaugeDespesas'), {
                 type: 'doughnut',
                 data: {
                     datasets: [{
-                        data: [75, 25, 0], // Visual zones
+                        data: [75, 15, 10], // Fixed visual zones
                         backgroundColor: ['#10b981', '#fbbf24', '#f43f5e'],
                         borderWidth: 0,
+                        hoverBorderWidth: 0,
                         circumference: 180,
                         rotation: 270,
                         needleValue: totalDespesaMonth,
-                        maxVal: gaugeMaxGasto
+                        maxVal: gaugeMaxGasto,
+                        borderRadius: 10 // Rounded edges
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false }, tooltip: { enabled: false } },
-                    cutout: '85%' 
+                    cutout: '88%' // Very thin arch
                 },
                 plugins: [gaugeNeedle]
             });
@@ -798,8 +798,8 @@
             document.getElementById('gauge-despesa-status').className = `text-xs font-bold uppercase mt-1 ${statusColorGasto}`;
 
 
-            // 4. Gauge Economia (Dynamic Goal)
-            // Target is targetInvest
+            // 4. Gauge Economia (Dynamic Goal - Minimalist Style)
+            // Zones: 0-30% (Red), 30-60% (Yellow), 60-100% (Green)
             const saldoLiquido = Math.max(0, totalReceitaMonth - totalDespesaMonth);
             const gaugeMaxInvest = targetInvest > 0 ? targetInvest : 1000;
             
@@ -810,17 +810,19 @@
                         data: [30, 30, 40], // Low, Mid, High savings zones
                         backgroundColor: ['#f43f5e', '#fbbf24', '#10b981'],
                         borderWidth: 0,
+                        hoverBorderWidth: 0,
                         circumference: 180,
                         rotation: 270,
                         needleValue: saldoLiquido,
-                        maxVal: gaugeMaxInvest
+                        maxVal: gaugeMaxInvest,
+                        borderRadius: 10
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false }, tooltip: { enabled: false } },
-                    cutout: '85%'
+                    cutout: '88%' // Very thin arch
                 },
                 plugins: [gaugeNeedle]
             });
