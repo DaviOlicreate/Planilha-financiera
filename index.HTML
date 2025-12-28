@@ -777,6 +777,14 @@
             input.value = value === '0,00' ? '' : value;
         };
 
+        // --- HELPER FOR GRADIENTS ---
+        function createGradient(ctx, colorStart, colorEnd) {
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, colorStart);
+            gradient.addColorStop(1, colorEnd);
+            return gradient;
+        }
+
         // --- DASHBOARD CORE LOGIC ---
         function updateInterface() {
             // Filters
@@ -1009,16 +1017,19 @@
             const monthKeys = Object.keys(monthsMap).sort();
             const dataExp = monthKeys.map(k => monthsMap[k].expense);
             // Investment is now Balance: Revenue - Expense
-            // Using max(0, val) to ensure line doesn't dip negative if not desired, 
-            // but for "Saldo" negative is possible. Let's stick to positive interpretation for "Investment Sum" context or raw balance? 
-            // Given "Soma de INVEST." usually implies asset growth, let's floor at 0.
             const dataInv = monthKeys.map(k => Math.max(0, monthsMap[k].revenue - monthsMap[k].expense));
             
             // Fixed Labels: JAN, FEV, MAR...
             const fixedMonthLabels = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
             if(chartInstances.main) chartInstances.main.destroy();
-            chartInstances.main = new Chart(document.getElementById('chart-main'), {
+            
+            // Contexts for gradients
+            const ctxMain = document.getElementById('chart-main').getContext('2d');
+            const goldGradient = createGradient(ctxMain, 'rgba(251, 191, 36, 0.7)', 'rgba(251, 191, 36, 0.0)');
+            const darkGradient = createGradient(ctxMain, 'rgba(31, 41, 55, 0.9)', 'rgba(31, 41, 55, 0.4)');
+
+            chartInstances.main = new Chart(ctxMain, {
                 type: 'bar',
                 plugins: [datalabelsPlugin], // Enable value labels above bars/points
                 data: {
@@ -1029,7 +1040,7 @@
                             data: dataInv,
                             type: 'line',
                             borderColor: '#fbbf24', // Gold/Yellow
-                            backgroundColor: '#fbbf24',
+                            backgroundColor: goldGradient, // Glassy Gradient
                             borderWidth: 2,
                             borderDash: [5, 5], // Dotted line
                             pointBackgroundColor: '#fbbf24',
@@ -1037,6 +1048,7 @@
                             pointBorderWidth: 1,
                             pointRadius: 4,
                             pointHoverRadius: 6,
+                            fill: true, // Enable fill for gradient
                             tension: 0.4, // Smooth curve
                             yAxisID: 'y1',
                             order: 1 // Line on top
@@ -1044,9 +1056,10 @@
                         {
                             label: 'Soma de GASTO NO MÊS',
                             data: dataExp,
-                            backgroundColor: '#1f2937', // Dark Gray / Almost Black (Slate-800 is #1e293b, Gray-800 is #1f2937). Using specific dark color.
-                            borderRadius: 0, // Solid appearance
-                            borderWidth: 0, // No borders
+                            backgroundColor: darkGradient, // Glassy Dark Gradient
+                            borderColor: 'rgba(255,255,255,0.1)', // Subtle border
+                            borderWidth: 1,
+                            borderRadius: 2, 
                             yAxisID: 'y',
                             order: 2
                         }
@@ -1097,14 +1110,27 @@
             const sortedCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 6);
 
             if(chartInstances.topCat) chartInstances.topCat.destroy();
-            chartInstances.topCat = new Chart(document.getElementById('chart-top-cat'), {
+            
+            const ctxTopCat = document.getElementById('chart-top-cat').getContext('2d');
+            // Generate multiple gradients for bars
+            const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#64748b'];
+            const gradients = colors.map(c => {
+                const grad = ctxTopCat.createLinearGradient(0, 0, 0, 300);
+                grad.addColorStop(0, c); // Start
+                grad.addColorStop(1, c + '1A'); // End with very low opacity (hex alpha 1A ~ 10%)
+                return grad;
+            });
+
+            chartInstances.topCat = new Chart(ctxTopCat, {
                 type: 'bar',
                 data: {
                     labels: sortedCats.map(x => x[0]),
                     datasets: [{
                         label: 'Gasto',
                         data: sortedCats.map(x => x[1]),
-                        backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#64748b'],
+                        backgroundColor: gradients,
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
                         borderRadius: 4,
                         barThickness: 30
                     }]
@@ -1130,20 +1156,20 @@
             });
 
             // Chart A (Renamed): Timeline Detail (Yellow Line) - ID: chart-timeline
-            // Filter all month expenses, sort by Date
             const timelineExpenses = monthData.filter(t => t.type === 'despesa').sort((a,b) => new Date(a.date) - new Date(b.date));
-            
-            // FIXED: Using Category as requested
             const labelsLine = timelineExpenses.map(t => `${t.category} (${t.date.split('-')[2]}/${t.date.split('-')[1]})`);
             const dataLine = timelineExpenses.map(t => t.value);
             const totalLine = dataLine.reduce((a,b) => a+b, 0);
 
-            // Update Totalizer in DOM
             const fmt = new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'});
             document.getElementById('chart-timeline-total').textContent = `Total do período: ${fmt.format(totalLine)}`;
 
             if(chartInstances.timeline) chartInstances.timeline.destroy();
-            chartInstances.timeline = new Chart(document.getElementById('chart-timeline'), {
+            
+            const ctxTimeline = document.getElementById('chart-timeline').getContext('2d');
+            const timelineGradient = createGradient(ctxTimeline, 'rgba(251, 191, 36, 0.5)', 'rgba(251, 191, 36, 0.0)');
+
+            chartInstances.timeline = new Chart(ctxTimeline, {
                 type: 'line',
                 plugins: [datalabelsPlugin], // Activate custom plugin
                 data: {
@@ -1152,14 +1178,15 @@
                         label: 'Valor',
                         data: dataLine,
                         borderColor: '#facc15', // Yellow-400
-                        backgroundColor: '#facc15',
+                        backgroundColor: timelineGradient,
                         borderWidth: 2,
                         tension: 0.4, // Smooth curve
                         pointRadius: 4,
                         pointHoverRadius: 6,
                         pointBackgroundColor: '#facc15',
                         pointBorderColor: '#fff',
-                        pointBorderWidth: 1
+                        pointBorderWidth: 1,
+                        fill: true
                     }]
                 },
                 options: {
@@ -1205,14 +1232,20 @@
             const sortedBanks = Object.entries(bankMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
 
             if(chartInstances.bank) chartInstances.bank.destroy();
-            chartInstances.bank = new Chart(document.getElementById('chart-bank'), {
+            
+            const ctxBank = document.getElementById('chart-bank').getContext('2d');
+            const bankGradient = createGradient(ctxBank, 'rgba(59, 130, 246, 0.8)', 'rgba(59, 130, 246, 0.1)'); // Blue
+
+            chartInstances.bank = new Chart(ctxBank, {
                 type: 'bar',
                 data: {
                     labels: sortedBanks.map(x => x[0]),
                     datasets: [{
                         label: 'Total',
                         data: sortedBanks.map(x => x[1]),
-                        backgroundColor: '#3b82f6',
+                        backgroundColor: bankGradient,
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
                         borderRadius: 4,
                         barThickness: 20
                     }]
@@ -1240,14 +1273,20 @@
             const sortedRec = Object.entries(recMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
 
             if(chartInstances.type) chartInstances.type.destroy();
-            chartInstances.type = new Chart(document.getElementById('chart-type'), {
+            
+            const ctxType = document.getElementById('chart-type').getContext('2d');
+            const recGradient = createGradient(ctxType, 'rgba(16, 185, 129, 0.8)', 'rgba(16, 185, 129, 0.1)'); // Green
+
+            chartInstances.type = new Chart(ctxType, {
                 type: 'bar', // Horizontal Bar
                 data: {
                     labels: sortedRec.map(x => x[0]),
                     datasets: [{
                         label: 'Entrada',
                         data: sortedRec.map(x => x[1]),
-                        backgroundColor: '#10b981',
+                        backgroundColor: recGradient,
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
                         borderRadius: 4,
                         barThickness: 20
                     }]
