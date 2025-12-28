@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle Financeiro Premium</title>
+    <title>Financeiro Pro | Dashboard</title>
     
-    <!-- Google Fonts -->
+    <!-- Google Fonts (Modernas e Limpas) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;700&display=swap" rel="stylesheet">
     
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -21,21 +21,26 @@
             theme: {
                 extend: {
                     fontFamily: {
-                        serif: ['"Playfair Display"', 'serif'],
-                        sans: ['"Montserrat"', 'sans-serif'],
+                        sans: ['"Inter"', 'sans-serif'],
+                        display: ['"Outfit"', 'sans-serif'],
                     },
                     colors: {
-                        slate: { 
-                            50: '#f8fafc',
-                            100: '#f1f5f9',
-                            800: '#1e293b', 
-                            850: '#151e2e', // Custom darker
-                            900: '#0f172a' 
-                        },
-                        emerald: { 500: '#10b981' }, // Receita
-                        rose: { 500: '#f43f5e' },    // Despesa
-                        indigo: { 500: '#6366f1' },  // Investimento
-                        amber: { 400: '#fbbf24' }    // Alerta
+                        brand: {
+                            dark: '#0f172a',
+                            surface: '#1e293b',
+                            accent: '#3b82f6', // Azul moderno
+                            receita: '#10b981', // Verde Esmeralda
+                            despesa: '#ef4444', // Vermelho Vibrante
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                        'slide-up': 'slideUp 0.5s ease-out forwards',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } }
                     }
                 }
             }
@@ -49,493 +54,447 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
     <style>
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        /* CSS Personalizado para Efeitos Avançados */
+        body { background-color: #0f172a; overflow-x: hidden; }
+        
+        /* Glassmorphism */
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .glass-strong {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-        .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-        .light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-        /* Glassmorphism Logic */
-        .glass-panel {
-            transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
-        }
+        /* Grid da Tabela */
+        .table-row-hover:hover td { background-color: rgba(59, 130, 246, 0.05); color: white; }
         
-        /* Dark Mode Glass */
-        .dark .glass-panel {
-            background: rgba(30, 41, 59, 0.6);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(148, 163, 184, 0.1);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+        /* Dashboard Fullscreen Mode */
+        .dashboard-fullscreen {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 50;
+            background: #0f172a;
+            overflow-y: auto;
+            display: none; /* Controlado via JS */
         }
+        .dashboard-fullscreen.active { display: block; animation: fadeIn 0.3s ease-out; }
 
-        /* Light Mode Glass */
-        .light .glass-panel {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(226, 232, 240, 0.8);
-            box-shadow: 0 4px 20px rgba(148, 163, 184, 0.15);
+        /* Card Hover Effects */
+        .menu-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-
-        /* Animations */
-        .fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        
-        /* Loader */
-        .loader {
-            border: 3px solid rgba(255,255,255,0.1);
-            border-left-color: #10b981;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
+        .menu-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            border-color: rgba(59, 130, 246, 0.5);
         }
-        .light .loader { border-color: rgba(0,0,0,0.1); border-left-color: #10b981; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-200 font-sans antialiased selection:bg-emerald-500 selection:text-white transition-colors duration-300">
+<body class="text-slate-300 font-sans antialiased selection:bg-brand-accent selection:text-white">
 
-    <!-- ==========================================
-         LOGIN SCREEN
-    ========================================== -->
-    <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 to-slate-900 transition-colors duration-500">
-        <div class="glass-panel p-10 rounded-3xl max-w-md w-full text-center border-t border-slate-700/50 shadow-2xl relative overflow-hidden">
-            <!-- Decorator -->
-            <div class="absolute -top-10 -left-10 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl"></div>
-            <div class="absolute -bottom-10 -right-10 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl"></div>
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen" class="fixed inset-0 z-[100] flex items-center justify-center bg-[#0f172a] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 to-[#0f172a]">
+        <div class="glass p-10 rounded-3xl max-w-md w-full text-center relative overflow-hidden border border-slate-700/50 shadow-2xl animate-fade-in">
+            <!-- Background Glows -->
+            <div class="absolute -top-20 -left-20 w-60 h-60 bg-brand-accent/20 rounded-full blur-[80px]"></div>
+            <div class="absolute -bottom-20 -right-20 w-60 h-60 bg-brand-receita/20 rounded-full blur-[80px]"></div>
 
             <div class="relative z-10">
-                <div class="mb-8 flex justify-center">
-                    <div class="w-20 h-20 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl flex items-center justify-center shadow-lg border border-slate-700/50">
-                        <i class="fa-solid fa-chart-pie text-emerald-500 text-4xl"></i>
-                    </div>
+                <div class="w-24 h-24 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl flex items-center justify-center shadow-lg border border-slate-700 mx-auto mb-8">
+                    <i class="fa-solid fa-chart-pie text-brand-accent text-5xl"></i>
                 </div>
-                <h1 class="font-serif text-4xl font-bold text-white mb-2 tracking-tight">Financeiro Premium</h1>
-                <p class="text-slate-400 text-sm mb-10 font-light">Gestão de patrimônio inteligente e elegante.</p>
+                <h1 class="font-display text-4xl font-bold text-white mb-2">Financeiro <span class="text-brand-accent">Pro</span></h1>
+                <p class="text-slate-400 mb-10">Gestão inteligente para suas finanças.</p>
                 
                 <button id="btn-login-google" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl hover:scale-[1.01] group">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5 group-hover:rotate-12 transition-transform">
-                    <span>Acessar com Google</span>
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6 h-6">
+                    <span>Entrar com Google</span>
                 </button>
-                <p id="login-error" class="text-rose-400 text-xs mt-4 hidden bg-rose-500/10 py-2 rounded-lg"></p>
+                <p id="login-error" class="text-brand-despesa text-xs mt-4 hidden"></p>
             </div>
         </div>
     </div>
 
-    <!-- ==========================================
-         APP STRUCTURE
-    ========================================== -->
-    <div id="app-content" class="hidden flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+    <!-- APP LAYOUT -->
+    <div id="app-content" class="hidden flex h-screen overflow-hidden">
         
-        <!-- SIDEBAR (Desktop) -->
-        <aside class="hidden md:flex w-72 bg-white dark:bg-slate-850 border-r border-slate-200 dark:border-slate-800 flex-col justify-between relative z-20 shadow-xl dark:shadow-none transition-colors duration-300">
+        <!-- SIDEBAR (Navegação Fixa) -->
+        <aside class="w-20 lg:w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between z-40 transition-all duration-300">
             <div>
-                <!-- Brand -->
-                <div class="h-24 flex items-center px-8">
-                    <i class="fa-solid fa-wallet text-emerald-500 text-2xl mr-3"></i>
-                    <h1 class="font-serif text-2xl font-bold text-slate-800 dark:text-white tracking-wide">Financeiro<span class="text-emerald-500">.</span></h1>
+                <!-- Logo -->
+                <div class="h-20 flex items-center justify-center lg:justify-start lg:px-6 border-b border-slate-800">
+                    <i class="fa-solid fa-wallet text-brand-accent text-2xl lg:mr-3"></i>
+                    <span class="hidden lg:block font-display font-bold text-xl text-white">Finanças</span>
                 </div>
 
-                <!-- Main Actions -->
-                <div class="px-6 pb-6 space-y-3">
-                    <button onclick="openModal('receita')" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 text-sm group">
-                        <i class="fa-solid fa-plus group-hover:rotate-90 transition-transform"></i> Nova Receita
+                <!-- Nav Items -->
+                <nav class="mt-8 space-y-2 px-2">
+                    <button onclick="switchView('home')" id="nav-home" class="w-full flex items-center justify-center lg:justify-start gap-4 px-4 py-3 rounded-xl text-brand-accent bg-slate-800/50 font-medium transition-all group">
+                        <i class="fa-solid fa-house text-lg group-hover:scale-110 transition-transform"></i>
+                        <span class="hidden lg:block">Início</span>
                     </button>
-                    <button onclick="openModal('despesa')" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-rose-400 dark:hover:border-rose-500 text-slate-600 dark:text-slate-300 font-semibold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-sm">
-                        <i class="fa-solid fa-minus text-rose-500"></i> Nova Despesa
-                    </button>
-                </div>
-
-                <!-- Navigation -->
-                <nav class="px-4 space-y-1">
-                    <p class="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 mt-4">Menu</p>
-                    <a href="#" onclick="switchView('dashboard')" id="nav-dashboard" class="flex items-center gap-4 px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 font-medium transition-colors">
-                        <i class="fa-solid fa-chart-line w-5 text-center"></i> Visão Geral
-                    </a>
-                    <a href="#" onclick="switchView('datagrid')" id="nav-datagrid" class="flex items-center gap-4 px-4 py-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                        <i class="fa-solid fa-table-list w-5 text-center"></i> Lançamentos
-                    </a>
                     
-                    <p class="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 mt-8">Dados</p>
-                    <label class="cursor-pointer flex items-center gap-4 px-4 py-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                        <i class="fa-solid fa-file-import w-5 text-center"></i> Importar Excel
-                        <input type="file" id="file-upload" accept=".xlsx, .xls, .csv" class="hidden">
-                    </label>
-                    <button onclick="clearAllData()" class="w-full text-left flex items-center gap-4 px-4 py-3 rounded-xl text-slate-500 dark:text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
-                        <i class="fa-solid fa-trash-can w-5 text-center"></i> Limpar Dados
+                    <button onclick="switchView('datagrid')" id="nav-datagrid" class="w-full flex items-center justify-center lg:justify-start gap-4 px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all group">
+                        <i class="fa-solid fa-table-columns text-lg group-hover:scale-110 transition-transform"></i>
+                        <span class="hidden lg:block">Base de Dados</span>
                     </button>
-                    <p id="import-status" class="px-4 text-[10px] text-emerald-500 h-4"></p>
+
+                    <button onclick="openDashboardFull()" class="w-full flex items-center justify-center lg:justify-start gap-4 px-4 py-3 rounded-xl text-slate-400 hover:text-brand-accent hover:bg-slate-800 transition-all group">
+                        <i class="fa-solid fa-chart-line text-lg group-hover:scale-110 transition-transform"></i>
+                        <span class="hidden lg:block">Dashboard</span>
+                    </button>
                 </nav>
             </div>
 
             <!-- User Footer -->
-            <div class="p-6 border-t border-slate-200 dark:border-slate-800">
-                <div class="flex items-center gap-3 mb-4">
-                    <img id="user-avatar" src="" class="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm">
-                    <div class="overflow-hidden">
-                        <p id="user-name" class="text-sm font-bold text-slate-700 dark:text-white truncate">Carregando...</p>
-                        <p class="text-xs text-slate-400">Plano Premium</p>
+            <div class="p-4 border-t border-slate-800">
+                <div class="flex items-center gap-3 justify-center lg:justify-start cursor-pointer hover:bg-slate-800 p-2 rounded-lg transition-colors" onclick="signOut(auth)">
+                    <img id="user-avatar" src="" class="w-8 h-8 rounded-full border border-slate-700">
+                    <div class="hidden lg:block overflow-hidden">
+                        <p id="user-name" class="text-xs font-bold text-white truncate">Usuário</p>
+                        <p class="text-[10px] text-slate-500">Sair</p>
                     </div>
                 </div>
-                <button id="btn-logout" class="w-full flex items-center justify-center gap-2 text-xs font-bold text-slate-400 hover:text-rose-500 transition-colors uppercase tracking-wider">
-                    <i class="fa-solid fa-right-from-bracket"></i> Sair
-                </button>
             </div>
         </aside>
 
-        <!-- MAIN CONTENT -->
-        <main class="flex-1 overflow-y-auto relative scroll-smooth">
-            <!-- Header -->
-            <header class="sticky top-0 z-30 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-8 py-5 flex justify-between items-center transition-colors duration-300">
-                <div>
-                    <h2 id="page-title" class="font-serif text-2xl font-bold text-slate-800 dark:text-white">Visão Geral</h2>
-                    <p id="current-date-display" class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">...</p>
-                </div>
-                
-                <div class="flex items-center gap-4">
-                    <!-- Theme Toggle -->
-                    <button onclick="toggleTheme()" class="w-10 h-10 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-amber-500 dark:text-slate-400 hover:scale-110 transition-all shadow-sm flex items-center justify-center">
-                        <i id="theme-icon" class="fa-solid fa-sun"></i>
-                    </button>
-
-                    <!-- Settings (Goals) -->
-                    <button onclick="openSettings()" class="hidden md:flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
-                        <i class="fa-solid fa-sliders"></i> Definir Metas
-                    </button>
-
-                    <!-- Date Filter -->
-                    <div class="flex items-center bg-white dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700 shadow-sm">
-                        <input type="month" id="global-month-filter" class="bg-transparent text-sm text-slate-700 dark:text-white px-3 py-1.5 focus:outline-none font-sans" onchange="filterDataByDate()">
+        <!-- MAIN CONTENT AREA -->
+        <main class="flex-1 overflow-y-auto bg-[#0f172a] relative">
+            
+            <!-- VIEW: HOME (MENU PRINCIPAL) -->
+            <div id="view-home" class="p-8 lg:p-12 max-w-7xl mx-auto animate-slide-up">
+                <header class="mb-10 flex justify-between items-end">
+                    <div>
+                        <p class="text-brand-accent font-bold uppercase tracking-wider text-xs mb-1">Bem-vindo de volta</p>
+                        <h2 class="font-display text-4xl font-bold text-white">Visão Geral</h2>
                     </div>
-                </div>
-            </header>
+                    <div class="text-right hidden sm:block">
+                        <p id="current-date" class="text-slate-400 text-sm">...</p>
+                    </div>
+                </header>
 
-            <!-- DASHBOARD VIEW -->
-            <div id="dashboard-view" class="p-4 md:p-8 space-y-8 fade-in pb-24">
-                
-                <!-- 1. KPIs Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <!-- Saldo -->
-                    <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
-                        <div class="flex justify-between items-start mb-4">
+                <!-- Cards Menu Principal -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Dashboard Card -->
+                    <div onclick="openDashboardFull()" class="menu-card glass p-8 rounded-3xl cursor-pointer group relative overflow-hidden col-span-1 md:col-span-2 lg:col-span-2">
+                        <div class="absolute top-0 right-0 w-64 h-64 bg-brand-accent/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-brand-accent/20 transition-all"></div>
+                        <div class="relative z-10 flex flex-col h-full justify-between">
                             <div>
-                                <p class="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Saldo Total</p>
-                                <h3 id="kpi-saldo" class="text-2xl lg:text-3xl font-bold text-slate-800 dark:text-white font-serif mt-1">R$ --</h3>
+                                <div class="w-12 h-12 rounded-xl bg-brand-accent/20 text-brand-accent flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+                                    <i class="fa-solid fa-chart-simple"></i>
+                                </div>
+                                <h3 class="text-2xl font-bold text-white mb-2">Dashboard Interativo</h3>
+                                <p class="text-slate-400 max-w-md">Visualize gráficos, analise tendências e acompanhe suas metas em tela cheia.</p>
                             </div>
-                            <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                                <i class="fa-solid fa-wallet"></i>
+                            <div class="mt-6 flex items-center text-brand-accent font-bold text-sm">
+                                <span>ABRIR AGORA</span>
+                                <i class="fa-solid fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Receita -->
-                    <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
-                        <div class="flex justify-between items-start mb-4">
+                    <!-- Botão Registrar Despesa -->
+                    <div onclick="openModal('despesa')" class="menu-card glass p-8 rounded-3xl cursor-pointer group relative overflow-hidden border-l-4 border-brand-despesa hover:border-brand-despesa">
+                        <div class="relative z-10">
+                            <div class="w-12 h-12 rounded-xl bg-brand-despesa/20 text-brand-despesa flex items-center justify-center text-xl mb-4 group-hover:rotate-12 transition-transform">
+                                <i class="fa-solid fa-minus"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-white mb-1">Registrar Despesa</h3>
+                            <p class="text-slate-400 text-sm">Adicionar saída manual.</p>
+                        </div>
+                    </div>
+
+                     <!-- Botão Registrar Receita -->
+                     <div onclick="openModal('receita')" class="menu-card glass p-8 rounded-3xl cursor-pointer group relative overflow-hidden border-l-4 border-brand-receita hover:border-brand-receita">
+                        <div class="relative z-10">
+                            <div class="w-12 h-12 rounded-xl bg-brand-receita/20 text-brand-receita flex items-center justify-center text-xl mb-4 group-hover:rotate-12 transition-transform">
+                                <i class="fa-solid fa-plus"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-white mb-1">Registrar Receita</h3>
+                            <p class="text-slate-400 text-sm">Adicionar entrada manual.</p>
+                        </div>
+                    </div>
+
+                    <!-- Base de Dados -->
+                    <div onclick="switchView('datagrid')" class="menu-card glass p-8 rounded-3xl cursor-pointer group relative overflow-hidden md:col-span-2">
+                        <div class="relative z-10 flex items-center gap-6">
+                            <div class="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center text-2xl text-slate-300 group-hover:text-white transition-colors">
+                                <i class="fa-solid fa-database"></i>
+                            </div>
                             <div>
-                                <p class="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Receitas</p>
-                                <h3 id="kpi-receitas" class="text-2xl lg:text-3xl font-bold text-emerald-600 dark:text-emerald-400 font-serif mt-1">R$ --</h3>
-                            </div>
-                            <div class="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                                <i class="fa-solid fa-arrow-trend-up"></i>
+                                <h3 class="text-xl font-bold text-white">Base de Dados Completa</h3>
+                                <p class="text-slate-400 text-sm mt-1">Gerencie, edite e filtre todas as suas transações em uma tabela dinâmica.</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Despesa -->
-                    <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <p class="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Despesas</p>
-                                <h3 id="kpi-despesas" class="text-2xl lg:text-3xl font-bold text-rose-600 dark:text-rose-400 font-serif mt-1">R$ --</h3>
-                            </div>
-                            <div class="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center">
-                                <i class="fa-solid fa-arrow-trend-down"></i>
-                            </div>
+                    <!-- Importar Excel -->
+                    <label class="menu-card glass p-8 rounded-3xl cursor-pointer group relative overflow-hidden flex flex-col items-center justify-center text-center border border-dashed border-slate-600 hover:border-brand-accent hover:bg-slate-800/50">
+                        <input type="file" id="file-upload" accept=".xlsx, .xls, .csv" class="hidden">
+                        <div class="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-white mb-3 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-file-excel"></i>
                         </div>
-                    </div>
+                        <h3 class="text-white font-bold">Importar Excel</h3>
+                        <p id="import-status" class="text-xs text-slate-400 mt-1">Clique para carregar planilha</p>
+                    </label>
 
-                    <!-- Economia -->
-                    <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <p class="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Taxa Poupança</p>
-                                <h3 id="kpi-economia" class="text-2xl lg:text-3xl font-bold text-indigo-600 dark:text-indigo-400 font-serif mt-1">--%</h3>
-                            </div>
-                            <div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                                <i class="fa-solid fa-piggy-bank"></i>
-                            </div>
-                        </div>
-                    </div>
                 </div>
-
-                <!-- 2. GAUGES ROW (Metas) -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Gauge Despesas -->
-                    <div class="glass-panel p-6 rounded-2xl flex flex-col items-center justify-center relative">
-                        <h3 class="font-serif text-lg font-bold text-slate-800 dark:text-white mb-2 absolute top-6 left-6">Meta de Gastos</h3>
-                        <div class="h-[200px] w-full flex justify-center items-end pb-4 mt-8">
-                            <canvas id="gaugeDespesas"></canvas>
-                        </div>
-                        <div class="text-center absolute bottom-4">
-                            <p id="gauge-despesa-val" class="text-xl font-bold text-slate-700 dark:text-white">R$ 0 / R$ 0</p>
-                            <p id="gauge-despesa-status" class="text-xs font-bold uppercase mt-1">--</p>
-                        </div>
-                    </div>
-
-                    <!-- Gauge Economia -->
-                    <div class="glass-panel p-6 rounded-2xl flex flex-col items-center justify-center relative">
-                        <h3 class="font-serif text-lg font-bold text-slate-800 dark:text-white mb-2 absolute top-6 left-6">Meta de Economia</h3>
-                        <div class="h-[200px] w-full flex justify-center items-end pb-4 mt-8">
-                            <canvas id="gaugeEconomia"></canvas>
-                        </div>
-                        <div class="text-center absolute bottom-4">
-                            <p id="gauge-economia-val" class="text-xl font-bold text-slate-700 dark:text-white">R$ 0 / R$ 0</p>
-                            <p id="gauge-economia-status" class="text-xs font-bold uppercase mt-1">--</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 3. LINE CHARTS ROW (Detalhes) -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Categorias -->
-                    <div class="glass-panel p-6 rounded-2xl">
-                        <div class="flex justify-between items-center mb-6">
-                            <h3 class="font-serif text-lg font-bold text-slate-800 dark:text-white">Evolução por Categoria</h3>
-                        </div>
-                        <div class="h-[300px]">
-                            <canvas id="lineCategory"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- Bancos -->
-                    <div class="glass-panel p-6 rounded-2xl">
-                        <div class="flex justify-between items-center mb-6">
-                            <h3 class="font-serif text-lg font-bold text-slate-800 dark:text-white">Gastos por Instituição</h3>
-                        </div>
-                        <div class="h-[300px]">
-                            <canvas id="lineBank"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 4. BAR CHARTS ROW (Consolidado) -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- Balanço Anual (2/3) -->
-                    <div class="glass-panel p-6 rounded-2xl lg:col-span-2">
-                        <h3 class="font-serif text-lg font-bold text-slate-800 dark:text-white mb-6">Balanço Anual: Gastos vs Investimento</h3>
-                        <div class="h-[300px]">
-                            <canvas id="barAnnual"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- Fontes de Receita (1/3) -->
-                    <div class="glass-panel p-6 rounded-2xl">
-                        <h3 class="font-serif text-lg font-bold text-slate-800 dark:text-white mb-6">Ranking de Receitas</h3>
-                        <div class="h-[300px]">
-                            <canvas id="barRevenue"></canvas>
-                        </div>
-                    </div>
-                </div>
-
             </div>
 
-            <!-- DATAGRID VIEW (LANÇAMENTOS) -->
-            <div id="datagrid-view" class="hidden p-4 md:p-8 fade-in h-full flex flex-col gap-6">
-                <!-- Search Bar (Global for both tables) -->
-                <div class="flex justify-between items-center px-2">
-                    <h2 class="font-serif text-2xl font-bold text-slate-800 dark:text-white">Lançamentos</h2>
-                    <div class="relative">
-                        <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                        <input type="text" id="datagrid-search" placeholder="Buscar em tudo..." class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs rounded-lg pl-9 pr-3 py-2 focus:ring-1 focus:ring-emerald-500 w-64 shadow-sm">
+            <!-- VIEW: DATAGRID (TABELAS) -->
+            <div id="view-datagrid" class="hidden h-full flex flex-col animate-fade-in">
+                <!-- Header Grid -->
+                <div class="px-8 py-6 border-b border-slate-800 bg-slate-900/50 backdrop-blur flex justify-between items-center">
+                    <div>
+                        <h2 class="font-display text-2xl font-bold text-white">Base de Dados</h2>
+                        <p class="text-slate-400 text-sm">Gerenciamento de registros</p>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="relative">
+                            <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                            <input type="text" id="grid-search" placeholder="Buscar categoria, banco..." class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg pl-9 pr-4 py-2 focus:ring-1 focus:ring-brand-accent focus:border-brand-accent outline-none w-64 transition-all">
+                        </div>
+                        <button onclick="clearAllData()" class="px-4 py-2 bg-slate-800 hover:bg-brand-despesa/20 hover:text-brand-despesa text-slate-400 rounded-lg text-sm font-bold transition-all border border-slate-700">
+                            <i class="fa-solid fa-trash-can mr-2"></i> Limpar
+                        </button>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
-                    <!-- Receitas Panel -->
-                    <div class="glass-panel rounded-2xl flex flex-col overflow-hidden border-t-4 border-t-emerald-500">
-                        <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-emerald-50 dark:bg-emerald-500/5">
-                            <h3 class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center">
-                                <div class="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center mr-2">
-                                    <i class="fa-solid fa-arrow-up text-xs"></i>
-                                </div>
-                                Tabela de Receitas
-                            </h3>
+                <!-- Tables Container -->
+                <div class="flex-1 overflow-auto p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    
+                    <!-- Table: Receitas -->
+                    <div class="glass rounded-2xl overflow-hidden flex flex-col border-t-4 border-t-brand-receita">
+                        <div class="p-4 bg-slate-800/50 border-b border-slate-700 flex justify-between items-center">
+                            <h3 class="font-bold text-brand-receita flex items-center gap-2"><i class="fa-solid fa-arrow-up"></i> Receitas</h3>
+                            <span id="count-rec" class="text-xs bg-slate-800 px-2 py-1 rounded text-slate-400">0 itens</span>
                         </div>
-                        <div class="flex-1 overflow-auto">
-                            <table class="w-full text-left text-sm text-slate-500 dark:text-slate-400">
-                                <thead class="text-xs text-slate-700 dark:text-slate-200 uppercase bg-slate-100 dark:bg-slate-800 sticky top-0 z-10 font-bold tracking-wider">
+                        <div class="overflow-auto flex-1">
+                            <table class="w-full text-left text-sm text-slate-400">
+                                <thead class="text-xs uppercase bg-slate-900/80 text-slate-300 sticky top-0 font-bold tracking-wider">
                                     <tr>
                                         <th class="px-4 py-3">Data</th>
-                                        <th class="px-4 py-3">Descrição</th>
+                                        <th class="px-4 py-3">Origem</th>
                                         <th class="px-4 py-3">Banco</th>
                                         <th class="px-4 py-3 text-right">Valor</th>
                                         <th class="px-4 py-3 text-center">Ações</th>
                                     </tr>
                                 </thead>
-                                <tbody id="grid-receitas" class="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-transparent">
-                                    <!-- JS Populates -->
-                                </tbody>
+                                <tbody id="tbody-receitas" class="divide-y divide-slate-800"></tbody>
                             </table>
-                        </div>
-                        <div class="p-2 text-[10px] text-center text-slate-400 bg-slate-50 dark:bg-slate-800/30">
-                            <span id="count-receitas">0 registros</span>
                         </div>
                     </div>
 
-                    <!-- Despesas Panel -->
-                    <div class="glass-panel rounded-2xl flex flex-col overflow-hidden border-t-4 border-t-rose-500">
-                        <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-rose-50 dark:bg-rose-500/5">
-                            <h3 class="font-bold text-rose-600 dark:text-rose-400 flex items-center">
-                                <div class="w-6 h-6 rounded-full bg-rose-100 dark:bg-rose-500/20 flex items-center justify-center mr-2">
-                                    <i class="fa-solid fa-arrow-down text-xs"></i>
-                                </div>
-                                Tabela de Despesas
-                            </h3>
+                    <!-- Table: Despesas -->
+                    <div class="glass rounded-2xl overflow-hidden flex flex-col border-t-4 border-t-brand-despesa">
+                        <div class="p-4 bg-slate-800/50 border-b border-slate-700 flex justify-between items-center">
+                            <h3 class="font-bold text-brand-despesa flex items-center gap-2"><i class="fa-solid fa-arrow-down"></i> Despesas</h3>
+                            <span id="count-desp" class="text-xs bg-slate-800 px-2 py-1 rounded text-slate-400">0 itens</span>
                         </div>
-                        <div class="flex-1 overflow-auto">
-                            <table class="w-full text-left text-sm text-slate-500 dark:text-slate-400">
-                                <thead class="text-xs text-slate-700 dark:text-slate-200 uppercase bg-slate-100 dark:bg-slate-800 sticky top-0 z-10 font-bold tracking-wider">
+                        <div class="overflow-auto flex-1">
+                            <table class="w-full text-left text-sm text-slate-400">
+                                <thead class="text-xs uppercase bg-slate-900/80 text-slate-300 sticky top-0 font-bold tracking-wider">
                                     <tr>
                                         <th class="px-4 py-3">Data</th>
                                         <th class="px-4 py-3">Descrição</th>
                                         <th class="px-4 py-3">Categoria</th>
-                                        <th class="px-4 py-3">Tipo 50/30/20</th>
-                                        <th class="px-4 py-3">Banco</th>
+                                        <th class="px-4 py-3">Definição</th>
                                         <th class="px-4 py-3 text-right">Valor</th>
                                         <th class="px-4 py-3 text-center">Ações</th>
                                     </tr>
                                 </thead>
-                                <tbody id="grid-despesas" class="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-transparent">
-                                    <!-- JS Populates -->
-                                </tbody>
+                                <tbody id="tbody-despesas" class="divide-y divide-slate-800"></tbody>
                             </table>
                         </div>
-                        <div class="p-2 text-[10px] text-center text-slate-400 bg-slate-50 dark:bg-slate-800/30">
-                            <span id="count-despesas">0 registros</span>
-                        </div>
                     </div>
+
                 </div>
             </div>
+
         </main>
     </div>
 
-    <!-- ==========================================
-         MODALS
-    ========================================== -->
-    
-    <!-- 1. Nova Transação -->
-    <div id="transaction-modal" class="fixed inset-0 z-[60] hidden">
-        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeModal('transaction-modal')"></div>
-        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-lg glass-panel bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-600 p-0 overflow-hidden">
-            <div class="bg-slate-50 dark:bg-slate-800 px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                <h3 id="modal-title" class="font-serif text-xl font-bold text-slate-800 dark:text-white">Nova Transação</h3>
-                <button onclick="closeModal('transaction-modal')" class="text-slate-400 hover:text-rose-500"><i class="fa-solid fa-xmark text-xl"></i></button>
+    <!-- DASHBOARD FULLSCREEN OVERLAY -->
+    <div id="dashboard-full" class="dashboard-fullscreen bg-[#0f172a] text-slate-200">
+        
+        <!-- Dashboard Nav (Floating Island) -->
+        <div class="fixed top-6 left-1/2 transform -translate-x-1/2 z-50">
+            <div class="glass-strong px-2 py-2 rounded-full flex gap-1 shadow-2xl border border-slate-700/50">
+                <button onclick="closeDashboardFull()" class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Voltar ao Menu">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div class="w-px h-6 bg-slate-700 my-auto mx-2"></div>
+                <button class="px-4 py-2 rounded-full bg-brand-accent text-white text-sm font-bold shadow-lg shadow-brand-accent/20">Visão Geral</button>
+                <button class="px-4 py-2 rounded-full hover:bg-white/5 text-slate-400 hover:text-white text-sm font-medium transition-colors">Categorias</button>
+                <button class="px-4 py-2 rounded-full hover:bg-white/5 text-slate-400 hover:text-white text-sm font-medium transition-colors">Evolução</button>
             </div>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div class="p-8 lg:p-16 max-w-[1600px] mx-auto mt-12 space-y-8 animate-slide-up">
             
-            <form id="transaction-form" class="p-6 space-y-4">
-                <input type="hidden" id="form-type">
-                
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Descrição</label>
-                    <input type="text" id="form-title" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-800 dark:text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors" placeholder="Ex: Mercado, Freelance...">
+            <!-- KPIs -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Saldo -->
+                <div class="glass p-6 rounded-3xl relative overflow-hidden">
+                    <div class="absolute -right-6 -top-6 w-32 h-32 bg-brand-accent/10 rounded-full blur-2xl"></div>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Saldo Atual</p>
+                    <h3 id="dash-saldo" class="text-4xl font-display font-bold text-white">R$ 0,00</h3>
+                    <div class="mt-4 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                        <div class="h-full bg-brand-accent w-full"></div>
+                    </div>
                 </div>
+                <!-- Receitas -->
+                <div class="glass p-6 rounded-3xl relative overflow-hidden">
+                    <div class="absolute -right-6 -top-6 w-32 h-32 bg-brand-receita/10 rounded-full blur-2xl"></div>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Entradas</p>
+                    <h3 id="dash-rec" class="text-4xl font-display font-bold text-brand-receita">R$ 0,00</h3>
+                    <div class="mt-4 flex items-center gap-2 text-xs text-brand-receita">
+                        <i class="fa-solid fa-arrow-trend-up"></i> <span>Acumulado</span>
+                    </div>
+                </div>
+                <!-- Despesas -->
+                <div class="glass p-6 rounded-3xl relative overflow-hidden">
+                    <div class="absolute -right-6 -top-6 w-32 h-32 bg-brand-despesa/10 rounded-full blur-2xl"></div>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Saídas</p>
+                    <h3 id="dash-desp" class="text-4xl font-display font-bold text-brand-despesa">R$ 0,00</h3>
+                    <div class="mt-4 flex items-center gap-2 text-xs text-brand-despesa">
+                        <i class="fa-solid fa-arrow-trend-down"></i> <span>Acumulado</span>
+                    </div>
+                </div>
+                <!-- Economia -->
+                <div class="glass p-6 rounded-3xl relative overflow-hidden flex flex-col justify-center items-center">
+                    <div class="relative w-24 h-24">
+                        <svg class="w-full h-full transform -rotate-90">
+                            <circle cx="48" cy="48" r="40" stroke="#1e293b" stroke-width="8" fill="transparent"></circle>
+                            <circle id="circle-progress" cx="48" cy="48" r="40" stroke="#3b82f6" stroke-width="8" fill="transparent" stroke-dasharray="251.2" stroke-dashoffset="251.2" class="transition-all duration-1000"></circle>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center flex-col">
+                            <span id="dash-eco-perc" class="text-lg font-bold text-white">0%</span>
+                        </div>
+                    </div>
+                    <p class="mt-2 text-xs text-slate-400 uppercase font-bold">Taxa de Poupança</p>
+                </div>
+            </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Valor (R$)</label>
-                        <input type="number" step="0.01" id="form-value" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-800 dark:text-white focus:border-emerald-500" placeholder="0.00">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data</label>
-                        <input type="date" id="form-date" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-800 dark:text-white focus:border-emerald-500">
+            <!-- Charts Row 1 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Bar Chart Main -->
+                <div class="glass p-6 rounded-3xl lg:col-span-2">
+                    <h4 class="font-bold text-white mb-6">Fluxo Financeiro Anual</h4>
+                    <div class="h-[300px]">
+                        <canvas id="chart-main"></canvas>
                     </div>
                 </div>
+                <!-- Doughnut Categories -->
+                <div class="glass p-6 rounded-3xl">
+                    <h4 class="font-bold text-white mb-6">Top Despesas (Categoria)</h4>
+                    <div class="h-[300px] flex items-center justify-center">
+                        <canvas id="chart-cat"></canvas>
+                    </div>
+                </div>
+            </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Categoria</label>
-                        <select id="form-category" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-800 dark:text-white focus:border-emerald-500 cursor-pointer">
-                            <option value="Moradia">Moradia</option>
-                            <option value="Alimentação">Alimentação</option>
-                            <option value="Transporte">Transporte</option>
-                            <option value="Lazer">Lazer</option>
-                            <option value="Saúde">Saúde</option>
-                            <option value="Educação">Educação</option>
-                            <option value="Investimento">Investimento</option>
-                            <option value="Salário">Salário</option>
-                            <option value="Outros">Outros</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Banco / Conta</label>
-                        <input type="text" id="form-bank" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-800 dark:text-white focus:border-emerald-500" placeholder="Ex: Nubank" list="bank-list">
-                        <datalist id="bank-list">
-                            <option value="Nubank">
-                            <option value="Inter">
-                            <option value="Itaú">
-                            <option value="Santander">
-                            <option value="Bradesco">
-                            <option value="Caixa">
-                            <option value="Carteira">
-                        </datalist>
+             <!-- Charts Row 2 -->
+             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="glass p-6 rounded-3xl">
+                    <h4 class="font-bold text-white mb-6">Gastos por Banco</h4>
+                    <div class="h-[250px]">
+                        <canvas id="chart-bank"></canvas>
                     </div>
                 </div>
+                <div class="glass p-6 rounded-3xl">
+                    <h4 class="font-bold text-white mb-6">Tipos de Despesa (50/30/20)</h4>
+                    <div class="h-[250px]">
+                        <canvas id="chart-type"></canvas>
+                    </div>
+                </div>
+            </div>
 
-                <div class="pt-4">
-                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2">
-                        <i class="fa-solid fa-check"></i> Salvar Lançamento
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
 
-    <!-- 2. Configurações de Metas (Percentage) -->
-    <div id="settings-modal" class="fixed inset-0 z-[60] hidden">
-        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeModal('settings-modal')"></div>
-        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md glass-panel bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-600 p-0">
-            <div class="bg-slate-50 dark:bg-slate-800 px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                <h3 class="font-serif text-xl font-bold text-slate-800 dark:text-white">Metas (% da Receita)</h3>
-                <button onclick="closeModal('settings-modal')" class="text-slate-400 hover:text-rose-500"><i class="fa-solid fa-xmark text-xl"></i></button>
+    <!-- MODAL (Unified) -->
+    <div id="modal" class="fixed inset-0 z-[70] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal()"></div>
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-lg glass bg-[#0f172a] rounded-2xl shadow-2xl border border-slate-700 overflow-hidden animate-slide-up">
+            <div class="bg-slate-900/50 px-6 py-4 border-b border-slate-700 flex justify-between items-center">
+                <h3 id="modal-title" class="font-display text-xl font-bold text-white">Nova Transação</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             
-            <form id="settings-form" class="p-6 space-y-6">
+            <form id="form-transaction" class="p-6 space-y-4">
+                <input type="hidden" id="form-type">
+                
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Limite de Gastos (%)</label>
-                    <div class="relative">
-                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
-                        <input type="number" id="meta-gasto" required min="0" max="100" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg pl-4 pr-10 py-3 text-slate-800 dark:text-white font-bold focus:border-amber-400 transition-colors" placeholder="50">
-                    </div>
-                    <p class="text-[10px] text-slate-400 mt-1">Porcentagem da Receita Bruta destinada a despesas.</p>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Descrição / Título</label>
+                    <input type="text" id="form-desc" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none" placeholder="Ex: Salário, Mercado...">
                 </div>
 
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Meta de Investimento (%)</label>
-                    <div class="relative">
-                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
-                        <input type="number" id="meta-invest" required min="0" max="100" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg pl-4 pr-10 py-3 text-slate-800 dark:text-white font-bold focus:border-indigo-500 transition-colors" placeholder="20">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Valor (R$)</label>
+                        <input type="number" step="0.01" id="form-val" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent outline-none">
                     </div>
-                    <p class="text-[10px] text-slate-400 mt-1">Porcentagem da Receita Bruta destinada a investimentos.</p>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Data</label>
+                        <input type="date" id="form-date" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent outline-none">
+                    </div>
                 </div>
 
-                <button type="submit" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all">
-                    Salvar Metas
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Banco</label>
+                        <input type="text" id="form-bank" list="bank-list" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent outline-none">
+                        <datalist id="bank-list">
+                            <option value="Nubank"><option value="Inter"><option value="Itaú"><option value="Bradesco"><option value="Caixa"><option value="Santander">
+                        </datalist>
+                    </div>
+                    <!-- Campos Dinâmicos (Categoria/Definição) -->
+                    <div id="field-cat-container">
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Categoria</label>
+                        <select id="form-cat" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent outline-none">
+                            <option value="Moradia">Moradia</option><option value="Alimentação">Alimentação</option><option value="Transporte">Transporte</option><option value="Lazer">Lazer</option><option value="Saúde">Saúde</option><option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Campo Extra Despesa -->
+                <div id="field-def-container" class="hidden">
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Definição (Regra 50/30/20)</label>
+                    <select id="form-def" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent outline-none">
+                        <option value="Necessidades (50%)">Necessidades (50%)</option>
+                        <option value="Desejos (30%)">Desejos (30%)</option>
+                        <option value="Poupança/Dívidas (20%)">Poupança/Dívidas (20%)</option>
+                    </select>
+                </div>
+
+                <button type="submit" id="btn-save" class="w-full bg-brand-accent hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/20 transition-all mt-4">
+                    Salvar Registro
                 </button>
             </form>
         </div>
     </div>
 
-
-    <!-- ==========================================
-         LOGIC
-    ========================================== -->
+    <!-- LOGIC -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, where, Timestamp, writeBatch, getDocs, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, where, Timestamp, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // --- CONFIG ---
         const firebaseConfig = {
             apiKey: "AIzaSyBWA5-o7lvPv7zybt1B-k7HdKcgPNYQOEc",
             authDomain: "planilha-financeira-fca35.firebaseapp.com",
@@ -548,25 +507,20 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
-
-        // State
+        
         let currentUser = null;
-        let allTransactions = [];
-        let userGoals = { gasto: 50, investimento: 20 }; // Default Percentages: 50% expenses, 20% invest
-        let charts = {}; 
+        let transactions = [];
+        let chartInstances = {};
 
         // --- AUTH ---
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
+        onAuthStateChanged(auth, (user) => {
+            if(user) {
                 currentUser = user;
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('app-content').classList.remove('hidden');
-                document.getElementById('user-avatar').src = user.photoURL || 'https://via.placeholder.com/40';
-                document.getElementById('user-name').textContent = user.displayName;
-                
-                await loadSettings();
-                initDataListener();
+                document.getElementById('user-name').textContent = user.displayName.split(' ')[0];
+                document.getElementById('user-avatar').src = user.photoURL;
+                loadData();
             } else {
                 currentUser = null;
                 document.getElementById('login-screen').classList.remove('hidden');
@@ -574,632 +528,356 @@
             }
         });
 
-        document.getElementById('btn-login-google').addEventListener('click', async () => {
-            try { await signInWithPopup(auth, provider); } 
-            catch (e) { document.getElementById('login-error').textContent = e.message; document.getElementById('login-error').classList.remove('hidden'); }
-        });
+        window.signOut = () => signOut(auth);
+        document.getElementById('btn-login-google').addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()));
 
-        document.getElementById('btn-logout').addEventListener('click', () => signOut(auth));
-
-        // --- THEME LOGIC ---
-        window.toggleTheme = () => {
-            const html = document.documentElement;
-            const icon = document.getElementById('theme-icon');
-            if (html.classList.contains('dark')) {
-                html.classList.remove('dark');
-                html.classList.add('light');
-                icon.className = "fa-solid fa-moon";
-                localStorage.setItem('theme', 'light');
-            } else {
-                html.classList.remove('light');
-                html.classList.add('dark');
-                icon.className = "fa-solid fa-sun";
-                localStorage.setItem('theme', 'dark');
-            }
-            // Update charts colors
-            updateUI();
-        };
-
-        // Init theme
-        if (localStorage.getItem('theme') === 'light') {
-            document.documentElement.classList.remove('dark');
-            document.documentElement.classList.add('light');
-            document.getElementById('theme-icon').className = "fa-solid fa-moon";
-        }
-
-        // --- DATA & SETTINGS ---
-        async function loadSettings() {
-            if(!currentUser) return;
-            try {
-                const docRef = doc(db, "user_settings", currentUser.uid);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    userGoals = docSnap.data();
-                }
-            } catch (e) { console.log("No settings yet"); }
-        }
-
-        function initDataListener() {
+        // --- DATA LOAD ---
+        function loadData() {
             const q = query(collection(db, "transacoes_financeiras"), orderBy("date", "desc"));
-            onSnapshot(q, (snapshot) => {
-                allTransactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                // Backwards compatibility for Bank field
-                allTransactions.forEach(t => { if(!t.bank) t.bank = "Não informado"; });
-                updateUI();
+            onSnapshot(q, (snap) => {
+                transactions = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(t => t.uid === currentUser.uid);
+                updateInterface();
             });
         }
 
-        // --- CHARTS LOGIC (CHART.JS) ---
-        function destroyCharts() {
-            Object.values(charts).forEach(c => c.destroy());
-            charts = {};
+        // --- UI LOGIC ---
+        function updateInterface() {
+            // Filter Arrays
+            const receitas = transactions.filter(t => t.type === 'receita');
+            const despesas = transactions.filter(t => t.type === 'despesa');
+
+            // 1. DataGrid Render
+            renderTable('tbody-receitas', receitas, ['date', 'title', 'bank', 'value'], 'receita');
+            renderTable('tbody-despesas', despesas, ['date', 'title', 'category', 'definition', 'value'], 'despesa');
+            
+            document.getElementById('count-rec').textContent = `${receitas.length} registros`;
+            document.getElementById('count-desp').textContent = `${despesas.length} registros`;
+
+            // 2. KPIs Dashboard
+            const totalRec = receitas.reduce((sum, t) => sum + t.value, 0);
+            const totalDesp = despesas.reduce((sum, t) => sum + t.value, 0);
+            const saldo = totalRec - totalDesp;
+            
+            const fmt = new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'});
+            document.getElementById('dash-saldo').textContent = fmt.format(saldo);
+            document.getElementById('dash-rec').textContent = fmt.format(totalRec);
+            document.getElementById('dash-desp').textContent = fmt.format(totalDesp);
+
+            // Savings Circle
+            const savingsRate = totalRec > 0 ? ((totalRec - totalDesp) / totalRec) : 0;
+            const percentage = Math.max(0, Math.min(100, Math.round(savingsRate * 100)));
+            document.getElementById('dash-eco-perc').textContent = `${percentage}%`;
+            
+            const circle = document.getElementById('circle-progress');
+            const radius = circle.r.baseVal.value;
+            const circumference = radius * 2 * Math.PI;
+            const offset = circumference - (percentage / 100) * circumference;
+            circle.style.strokeDashoffset = offset;
+            
+            // Color logic for circle
+            circle.style.stroke = percentage > 20 ? '#10b981' : (percentage > 0 ? '#fbbf24' : '#ef4444');
+
+            // 3. Update Charts
+            updateCharts(receitas, despesas);
         }
 
-        function getChartColors() {
-            const isDark = document.documentElement.classList.contains('dark');
-            return {
-                text: isDark ? '#cbd5e1' : '#475569',
-                grid: isDark ? '#334155' : '#e2e8f0',
-                tooltipBg: isDark ? '#1e293b' : '#ffffff',
-                tooltipText: isDark ? '#fff' : '#0f172a'
-            };
-        }
-
-        // --- GAUGE POINTER PLUGIN ---
-        const gaugeNeedle = {
-            id: 'gaugeNeedle',
-            afterDatasetDraw(chart, args, options) {
-                const { ctx, data, chartArea: { width, height } } = chart;
-                ctx.save();
-                
-                const needleValue = data.datasets[0].needleValue;
-                const maxVal = data.datasets[0].maxVal;
-                
-                let percentage = needleValue / maxVal;
-                if(percentage > 1) percentage = 1;
-                if(percentage < 0) percentage = 0;
-                
-                // ChartJS circumference 180, rotation 270 (starts at 9 o'clock)
-                const angle = Math.PI + (percentage * Math.PI);
-                
-                const cx = width / 2;
-                const cy = chart._metasets[0].data[0].y; // Vertical center of the donut shape
-
-                // Translate to center
-                ctx.translate(cx, cy);
-                ctx.rotate(angle);
-                
-                // Draw Needle (Triangle)
-                ctx.beginPath();
-                ctx.moveTo(0, -3); // Width at base
-                ctx.lineTo(height/2 - 20, 0); // Tip length
-                ctx.lineTo(0, 3); // Width at base
-                ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#1e293b';
-                ctx.fill();
-                
-                // Draw Pivot Circle
-                ctx.rotate(-angle); // Reset rotation to draw circle flat
-                ctx.beginPath();
-                ctx.arc(0, 0, 6, 0, Math.PI * 2);
-                ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#1e293b';
-                ctx.fill();
-                
-                ctx.restore();
-            }
-        };
-
-        function renderCharts(data) {
-            destroyCharts();
-            const colors = getChartColors();
-            const font = { family: 'Montserrat', size: 11 };
-
-            // Data Prep
-            const sortedData = [...data].sort((a,b) => new Date(a.date) - new Date(b.date));
-            const groupedByDateCat = {};
-            const groupedByDateBank = {};
-            const groupedByMonth = {};
-            const groupedByRevenueSource = {};
+        function renderTable(elementId, data, cols, type) {
+            const tbody = document.getElementById(elementId);
+            tbody.innerHTML = '';
             
-            let totalDespesaMonth = 0;
-            let totalReceitaMonth = 0;
-
-            sortedData.forEach(t => {
-                const d = t.date; // YYYY-MM-DD
-                const monthKey = d.substring(0, 7); // YYYY-MM
-
-                if (t.type === 'despesa') {
-                    // Line Category
-                    if(!groupedByDateCat[t.category]) groupedByDateCat[t.category] = {};
-                    if(!groupedByDateCat[t.category][d]) groupedByDateCat[t.category][d] = 0;
-                    groupedByDateCat[t.category][d] += t.value;
-
-                    // Line Bank
-                    const bank = t.bank || "Outros";
-                    if(!groupedByDateBank[bank]) groupedByDateBank[bank] = {};
-                    if(!groupedByDateBank[bank][d]) groupedByDateBank[bank][d] = 0;
-                    groupedByDateBank[bank][d] += t.value;
-
-                    totalDespesaMonth += t.value;
-
-                    // Annual Bar
-                    if(!groupedByMonth[monthKey]) groupedByMonth[monthKey] = { rec: 0, desp: 0 };
-                    groupedByMonth[monthKey].desp += t.value;
-                } else {
-                    totalReceitaMonth += t.value;
-                    
-                    // Annual Bar
-                    if(!groupedByMonth[monthKey]) groupedByMonth[monthKey] = { rec: 0, desp: 0 };
-                    groupedByMonth[monthKey].rec += t.value;
-
-                    // Revenue Source
-                    const src = t.title || "Outros";
-                    if(!groupedByRevenueSource[src]) groupedByRevenueSource[src] = 0;
-                    groupedByRevenueSource[src] += t.value;
-                }
-            });
-
-            // Calculate Dynamic Goals
-            // Fallback to 1 if 0 to avoid division by zero
-            const revenueBase = totalReceitaMonth > 0 ? totalReceitaMonth : 1; 
-            const targetGasto = totalReceitaMonth * (userGoals.gasto / 100);
-            const targetInvest = totalReceitaMonth * (userGoals.investimento / 100);
-
-            // 1. Line Category
-            const allDays = [...new Set(sortedData.map(t => t.date))].sort();
-            const datasetsCat = Object.keys(groupedByDateCat).map((cat, i) => {
-                const hue = (i * 137) % 360; 
-                return {
-                    label: cat,
-                    data: allDays.map(d => groupedByDateCat[cat][d] || 0),
-                    borderColor: `hsl(${hue}, 70%, 50%)`,
-                    backgroundColor: `hsl(${hue}, 70%, 50%)`,
-                    borderWidth: 2,
-                    tension: 0.3,
-                    pointRadius: 0
-                };
-            });
-
-            charts.lineCategory = new Chart(document.getElementById('lineCategory'), {
-                type: 'line',
-                data: { labels: allDays.map(d => d.slice(8)), datasets: datasetsCat }, // Show only Day
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: { legend: { labels: { color: colors.text, font } } },
-                    scales: {
-                        x: { grid: { display: false }, ticks: { color: colors.text } },
-                        y: { grid: { color: colors.grid }, ticks: { color: colors.text } }
-                    }
-                }
-            });
-
-            // 2. Line Bank
-            const datasetsBank = Object.keys(groupedByDateBank).map((bank, i) => {
-                const hue = (i * 200) % 360; 
-                return {
-                    label: bank,
-                    data: allDays.map(d => groupedByDateBank[bank][d] || 0),
-                    borderColor: `hsl(${hue}, 60%, 60%)`,
-                    borderWidth: 2,
-                    tension: 0.3,
-                    pointRadius: 0
-                };
-            });
-
-            charts.lineBank = new Chart(document.getElementById('lineBank'), {
-                type: 'line',
-                data: { labels: allDays.map(d => d.slice(8)), datasets: datasetsBank },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: { legend: { labels: { color: colors.text, font } } },
-                    scales: {
-                        x: { grid: { display: false }, ticks: { color: colors.text } },
-                        y: { grid: { color: colors.grid }, ticks: { color: colors.text } }
-                    }
-                }
-            });
-
-            // 3. Gauge Despesas (Dynamic Goal - Minimalist Style)
-            // Zones: 0-75% (Green), 75-90% (Yellow), 90-100% (Red)
-            const gaugeMaxGasto = targetGasto > 0 ? targetGasto : 1000; 
-            
-            charts.gaugeDespesas = new Chart(document.getElementById('gaugeDespesas'), {
-                type: 'doughnut',
-                data: {
-                    datasets: [{
-                        data: [75, 15, 10], // Fixed visual zones
-                        backgroundColor: ['#10b981', '#fbbf24', '#f43f5e'],
-                        borderWidth: 0,
-                        hoverBorderWidth: 0,
-                        circumference: 180,
-                        rotation: 270,
-                        needleValue: totalDespesaMonth,
-                        maxVal: gaugeMaxGasto,
-                        borderRadius: 10 // Rounded edges
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
-                    cutout: '88%' // Very thin arch
-                },
-                plugins: [gaugeNeedle]
-            });
-            
-            // Text Display
-            const statusGasto = totalDespesaMonth > targetGasto ? 'Estourado' : 'Dentro da Meta';
-            const statusColorGasto = totalDespesaMonth > targetGasto ? 'text-rose-500' : 'text-emerald-500';
-            const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-            
-            document.getElementById('gauge-despesa-val').innerHTML = `
-                <span class="${totalDespesaMonth > targetGasto ? 'text-rose-500' : 'text-slate-200'}">${fmt.format(totalDespesaMonth)}</span> 
-                <span class="text-sm font-normal text-slate-400">/ ${fmt.format(targetGasto)}</span>`;
-            document.getElementById('gauge-despesa-status').textContent = `${statusGasto} (${userGoals.gasto}%)`;
-            document.getElementById('gauge-despesa-status').className = `text-xs font-bold uppercase mt-1 ${statusColorGasto}`;
-
-
-            // 4. Gauge Economia (Dynamic Goal - Minimalist Style)
-            // Zones: 0-30% (Red), 30-60% (Yellow), 60-100% (Green)
-            const saldoLiquido = Math.max(0, totalReceitaMonth - totalDespesaMonth);
-            const gaugeMaxInvest = targetInvest > 0 ? targetInvest : 1000;
-            
-            charts.gaugeEconomia = new Chart(document.getElementById('gaugeEconomia'), {
-                type: 'doughnut',
-                data: {
-                    datasets: [{
-                        data: [30, 30, 40], // Low, Mid, High savings zones
-                        backgroundColor: ['#f43f5e', '#fbbf24', '#10b981'],
-                        borderWidth: 0,
-                        hoverBorderWidth: 0,
-                        circumference: 180,
-                        rotation: 270,
-                        needleValue: saldoLiquido,
-                        maxVal: gaugeMaxInvest,
-                        borderRadius: 10
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
-                    cutout: '88%' // Very thin arch
-                },
-                plugins: [gaugeNeedle]
-            });
-            
-            const statusInvest = saldoLiquido >= targetInvest ? 'Meta Atingida' : 'Em progresso';
-            const statusColorInvest = saldoLiquido >= targetInvest ? 'text-emerald-500' : 'text-amber-400';
-            
-            document.getElementById('gauge-economia-val').innerHTML = `
-                <span class="text-indigo-500">${fmt.format(saldoLiquido)}</span> 
-                <span class="text-sm font-normal text-slate-400">/ ${fmt.format(targetInvest)}</span>`;
-            document.getElementById('gauge-economia-status').textContent = `${statusInvest} (${userGoals.investimento}%)`;
-            document.getElementById('gauge-economia-status').className = `text-xs font-bold uppercase mt-1 ${statusColorInvest}`;
-
-            // 5. Bar Annual (Month vs Month) - Using Global Data for this one usually, but here filtering by context
-            // To make it useful, we usually show the whole year. For this demo, I'll use the groupedByMonth from filteredData
-            const months = Object.keys(groupedByMonth).sort();
-            charts.barAnnual = new Chart(document.getElementById('barAnnual'), {
-                type: 'bar',
-                data: {
-                    labels: months,
-                    datasets: [
-                        { label: 'Gastos', data: months.map(m => groupedByMonth[m].desp), backgroundColor: '#f43f5e', borderRadius: 4 },
-                        { label: 'Investível', data: months.map(m => Math.max(0, groupedByMonth[m].rec - groupedByMonth[m].desp)), backgroundColor: '#6366f1', borderRadius: 4 }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { labels: { color: colors.text, font } } },
-                    scales: {
-                        x: { grid: { display: false }, ticks: { color: colors.text } },
-                        y: { grid: { color: colors.grid }, ticks: { color: colors.text } }
-                    }
-                }
-            });
-
-            // 6. Bar Horizontal Revenue
-            const sortedSources = Object.entries(groupedByRevenueSource).sort((a,b) => b[1] - a[1]);
-            charts.barRevenue = new Chart(document.getElementById('barRevenue'), {
-                type: 'bar',
-                data: {
-                    labels: sortedSources.map(s => s[0]),
-                    datasets: [{
-                        label: 'Receita',
-                        data: sortedSources.map(s => s[1]),
-                        backgroundColor: '#10b981',
-                        borderRadius: 4,
-                        barThickness: 20
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { grid: { color: colors.grid }, ticks: { color: colors.text } },
-                        y: { grid: { display: false }, ticks: { color: colors.text } }
-                    }
-                }
-            });
-        }
-
-        // --- UI UPDATES ---
-        window.updateUI = () => {
-            const selectedMonth = document.getElementById('global-month-filter').value;
-            let filteredData = allTransactions;
-            
-            if (selectedMonth) {
-                filteredData = allTransactions.filter(t => t.date.startsWith(selectedMonth));
-            }
-
-            // KPIs
-            let receita = 0, despesa = 0;
-            filteredData.forEach(t => t.type === 'receita' ? receita += t.value : despesa += t.value);
-            const saldo = receita - despesa;
-            const economia = receita > 0 ? ((receita - despesa) / receita) * 100 : 0;
-
-            const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-            document.getElementById('kpi-saldo').textContent = fmt.format(saldo);
-            document.getElementById('kpi-receitas').textContent = fmt.format(receita);
-            document.getElementById('kpi-despesas').textContent = fmt.format(despesa);
-            document.getElementById('kpi-economia').textContent = Math.max(0, Math.round(economia)) + '%';
-
-            renderCharts(filteredData);
-            renderGrid(filteredData);
-        }
-
-        function renderGrid(data) {
-            const tbodyReceitas = document.getElementById('grid-receitas');
-            const tbodyDespesas = document.getElementById('grid-despesas');
-            
-            tbodyReceitas.innerHTML = '';
-            tbodyDespesas.innerHTML = '';
-            
-            const search = document.getElementById('datagrid-search').value.toLowerCase();
-            
-            // Filter Global Data first by search term
+            // Apply Search Filter
+            const term = document.getElementById('grid-search').value.toLowerCase();
             const filtered = data.filter(t => 
-                t.title.toLowerCase().includes(search) || 
-                t.category.toLowerCase().includes(search) ||
-                (t.bank && t.bank.toLowerCase().includes(search))
+                (t.title && t.title.toLowerCase().includes(term)) || 
+                (t.category && t.category.toLowerCase().includes(term)) ||
+                (t.bank && t.bank.toLowerCase().includes(term))
             );
 
-            // Split
-            const receitas = filtered.filter(t => t.type === 'receita');
-            const despesas = filtered.filter(t => t.type === 'despesa');
-
-            // Update Counts
-            document.getElementById('count-receitas').textContent = `${receitas.length} registros`;
-            document.getElementById('count-despesas').textContent = `${despesas.length} registros`;
-
-            // Render Receitas
-            receitas.forEach(t => {
+            filtered.forEach(t => {
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors border-b border-slate-100 dark:border-slate-800";
-                const fmtVal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.value);
+                tr.className = "table-row-hover border-b border-slate-800 transition-colors";
                 
-                tr.innerHTML = `
-                    <td class="px-4 py-3 whitespace-nowrap text-slate-500 dark:text-slate-400 font-mono text-xs">${new Date(t.date+'T12:00').toLocaleDateString('pt-BR')}</td>
-                    <td class="px-4 py-3 font-bold text-slate-700 dark:text-slate-200">${t.title}</td>
-                    <td class="px-4 py-3 text-xs text-slate-500 dark:text-slate-400">${t.bank || '-'}</td>
-                    <td class="px-4 py-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">+ ${fmtVal}</td>
-                    <td class="px-4 py-3 text-center">
-                        <button onclick="deleteItem('${t.id}')" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                `;
-                tbodyReceitas.appendChild(tr);
-            });
+                let html = '';
+                cols.forEach(col => {
+                    if(col === 'date') html += `<td class="px-4 py-4 whitespace-nowrap font-mono text-xs text-slate-500">${formatDate(t.date)}</td>`;
+                    else if(col === 'value') {
+                        const color = type === 'receita' ? 'text-brand-receita' : 'text-brand-despesa';
+                        const sign = type === 'receita' ? '+' : '-';
+                        html += `<td class="px-4 py-4 text-right font-bold ${color}">${sign} ${t.value.toFixed(2)}</td>`;
+                    }
+                    else if(col === 'category' || col === 'definition') {
+                        html += `<td class="px-4 py-4"><span class="bg-slate-800 border border-slate-700 text-xs px-2 py-1 rounded text-slate-300">${t[col] || '-'}</span></td>`;
+                    }
+                    else html += `<td class="px-4 py-4 font-medium text-slate-300">${t[col] || '-'}</td>`;
+                });
 
-            // Render Despesas
-            despesas.forEach(t => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors border-b border-slate-100 dark:border-slate-800";
-                const fmtVal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.value);
-                
-                tr.innerHTML = `
-                    <td class="px-4 py-3 whitespace-nowrap text-slate-500 dark:text-slate-400 font-mono text-xs">${new Date(t.date+'T12:00').toLocaleDateString('pt-BR')}</td>
-                    <td class="px-4 py-3 font-bold text-slate-700 dark:text-slate-200">${t.title}</td>
-                    <td class="px-4 py-3"><span class="px-2 py-1 rounded-md text-xs border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300">${t.category}</span></td>
-                    <td class="px-4 py-3"><span class="px-2 py-1 rounded-md text-xs border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300">${t.type50 || '-'}</span></td>
-                    <td class="px-4 py-3 text-xs text-slate-500 dark:text-slate-400">${t.bank || '-'}</td>
-                    <td class="px-4 py-3 text-right font-mono font-bold text-rose-600 dark:text-rose-400">- ${fmtVal}</td>
-                    <td class="px-4 py-3 text-center">
-                        <button onclick="deleteItem('${t.id}')" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                `;
-                tbodyDespesas.appendChild(tr);
+                // Actions
+                html += `<td class="px-4 py-4 text-center">
+                    <button onclick="deleteItem('${t.id}')" class="text-slate-600 hover:text-brand-despesa transition-colors"><i class="fa-solid fa-trash"></i></button>
+                </td>`;
+
+                tr.innerHTML = html;
+                tbody.appendChild(tr);
             });
         }
 
         window.deleteItem = async (id) => {
-            if(confirm('Excluir transação?')) await deleteDoc(doc(db, "transacoes_financeiras", id));
+            if(confirm('Tem certeza?')) await deleteDoc(doc(db, "transacoes_financeiras", id));
         }
 
-        window.filterDataByDate = updateUI;
-        document.getElementById('datagrid-search').addEventListener('input', () => renderGrid(allTransactions)); // Search global or filtered? Usually filtered context
+        document.getElementById('grid-search').addEventListener('input', updateInterface);
+        window.clearAllData = async () => {
+            if(!confirm("CUIDADO: Isso apagará tudo!")) return;
+            const batch = writeBatch(db);
+            transactions.forEach(t => batch.delete(doc(db, "transacoes_financeiras", t.id)));
+            await batch.commit();
+        }
 
-        // --- FORMS & MODALS ---
+        // --- CHARTJS LOGIC ---
+        function updateCharts(rec, desp) {
+            const ctxMain = document.getElementById('chart-main');
+            const ctxCat = document.getElementById('chart-cat');
+            const ctxBank = document.getElementById('chart-bank');
+            const ctxType = document.getElementById('chart-type');
+
+            if(!ctxMain || document.getElementById('dashboard-full').style.display === 'none') return;
+
+            // Prepare Data Groups
+            const months = {};
+            [...rec, ...desp].forEach(t => {
+                const k = t.date.substring(0, 7); // YYYY-MM
+                if(!months[k]) months[k] = {rec:0, desp:0};
+                if(t.type === 'receita') months[k].rec += t.value;
+                else months[k].desp += t.value;
+            });
+            const labelsM = Object.keys(months).sort();
+
+            // 1. Main Chart (Bar)
+            if(chartInstances.main) chartInstances.main.destroy();
+            chartInstances.main = new Chart(ctxMain, {
+                type: 'bar',
+                data: {
+                    labels: labelsM,
+                    datasets: [
+                        { label: 'Entradas', data: labelsM.map(m => months[m].rec), backgroundColor: '#10b981', borderRadius: 6 },
+                        { label: 'Saídas', data: labelsM.map(m => months[m].desp), backgroundColor: '#ef4444', borderRadius: 6 }
+                    ]
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { grid: { color: '#334155' } }, x: { grid: { display: false } } },
+                    plugins: { legend: { labels: { color: '#cbd5e1' } } }
+                }
+            });
+
+            // 2. Categories (Doughnut)
+            const cats = {};
+            desp.forEach(t => {
+                const c = t.category || 'Outros';
+                cats[c] = (cats[c] || 0) + t.value;
+            });
+            if(chartInstances.cat) chartInstances.cat.destroy();
+            chartInstances.cat = new Chart(ctxCat, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(cats),
+                    datasets: [{
+                        data: Object.values(cats),
+                        backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#64748b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#cbd5e1' } } } }
+            });
+
+            // 3. Bank (Bar Horizontal)
+            const banks = {};
+            desp.forEach(t => {
+                const b = t.bank || 'Outros';
+                banks[b] = (banks[b] || 0) + t.value;
+            });
+            if(chartInstances.bank) chartInstances.bank.destroy();
+            chartInstances.bank = new Chart(ctxBank, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(banks),
+                    datasets: [{ label: 'Gasto por Banco', data: Object.values(banks), backgroundColor: '#3b82f6', borderRadius: 4 }]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: '#334155' } } } }
+            });
+
+             // 4. Type 50/30/20 (Pie)
+             const types = {};
+            desp.forEach(t => {
+                const d = t.definition || 'Outros';
+                types[d] = (types[d] || 0) + t.value;
+            });
+            if(chartInstances.type) chartInstances.type.destroy();
+            chartInstances.type = new Chart(ctxType, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(types),
+                    datasets: [{ data: Object.values(types), backgroundColor: ['#ef4444', '#eab308', '#3b82f6', '#94a3b8'], borderWidth: 0 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#cbd5e1' } } } }
+            });
+        }
+
+        // --- NAVIGATION & MODALS ---
+        window.switchView = (viewName) => {
+            ['home', 'datagrid'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
+            document.getElementById(`view-${viewName}`).classList.remove('hidden');
+            
+            // Nav Active State
+            document.getElementById('nav-home').classList.remove('text-brand-accent', 'bg-slate-800/50');
+            document.getElementById('nav-datagrid').classList.remove('text-brand-accent', 'bg-slate-800/50');
+            
+            document.getElementById(`nav-${viewName}`).classList.add('text-brand-accent', 'bg-slate-800/50');
+            document.getElementById(`nav-${viewName}`).classList.remove('text-slate-400');
+        }
+
+        window.openDashboardFull = () => {
+            document.getElementById('dashboard-full').classList.add('active');
+            updateInterface(); // Force chart render
+        }
+        window.closeDashboardFull = () => document.getElementById('dashboard-full').classList.remove('active');
+
         window.openModal = (type) => {
-            document.getElementById('transaction-modal').classList.remove('hidden');
+            document.getElementById('modal').classList.remove('hidden');
             document.getElementById('form-type').value = type;
             document.getElementById('modal-title').textContent = type === 'receita' ? 'Nova Receita' : 'Nova Despesa';
-            document.getElementById('modal-title').className = `font-serif text-xl font-bold ${type === 'receita' ? 'text-emerald-500' : 'text-rose-500'}`;
+            document.getElementById('modal-title').className = `font-display text-xl font-bold ${type === 'receita' ? 'text-brand-receita' : 'text-brand-despesa'}`;
+            document.getElementById('btn-save').className = `w-full font-bold py-4 rounded-xl shadow-lg transition-all mt-4 text-white ${type === 'receita' ? 'bg-brand-receita hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-brand-despesa hover:bg-rose-600 shadow-rose-500/20'}`;
+            
+            // Toggle Fields
+            if(type === 'receita') {
+                document.getElementById('field-cat-container').classList.add('hidden');
+                document.getElementById('field-def-container').classList.add('hidden');
+            } else {
+                document.getElementById('field-cat-container').classList.remove('hidden');
+                document.getElementById('field-def-container').classList.remove('hidden');
+            }
             document.getElementById('form-date').valueAsDate = new Date();
         }
+        window.closeModal = () => document.getElementById('modal').classList.add('hidden');
 
-        window.openSettings = () => {
-            document.getElementById('settings-modal').classList.remove('hidden');
-            document.getElementById('meta-gasto').value = userGoals.gasto;
-            document.getElementById('meta-invest').value = userGoals.investimento;
-        }
-
-        window.closeModal = (id) => {
-            document.getElementById(id).classList.add('hidden');
-            if(id === 'transaction-modal') document.getElementById('transaction-form').reset();
-        }
-
-        document.getElementById('transaction-form').addEventListener('submit', async (e) => {
+        // --- FORM SUBMIT ---
+        document.getElementById('form-transaction').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if(!currentUser) return;
-            const title = document.getElementById('form-title').value;
-            const value = parseFloat(document.getElementById('form-value').value);
-            const date = document.getElementById('form-date').value;
-            const category = document.getElementById('form-category').value;
-            const bank = document.getElementById('form-bank').value;
             const type = document.getElementById('form-type').value;
+            const data = {
+                uid: currentUser.uid,
+                type: type,
+                title: document.getElementById('form-desc').value,
+                value: parseFloat(document.getElementById('form-val').value),
+                date: document.getElementById('form-date').value,
+                bank: document.getElementById('form-bank').value,
+                createdAt: Timestamp.now()
+            };
 
-            await addDoc(collection(db, "transacoes_financeiras"), {
-                title, value, date, category, bank, type, uid: currentUser.uid, createdAt: Timestamp.now()
-            });
-            closeModal('transaction-modal');
+            if(type === 'despesa') {
+                data.category = document.getElementById('form-cat').value;
+                data.definition = document.getElementById('form-def').value;
+            } else {
+                // Mapeando "Origem" (usando Title) para Receita
+                data.origin = data.title; 
+            }
+
+            await addDoc(collection(db, "transacoes_financeiras"), data);
+            closeModal();
+            document.getElementById('form-transaction').reset();
         });
 
-        document.getElementById('settings-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if(!currentUser) return;
-            const gasto = parseFloat(document.getElementById('meta-gasto').value);
-            const investimento = parseFloat(document.getElementById('meta-invest').value);
-            
-            await setDoc(doc(db, "user_settings", currentUser.uid), { gasto, investimento }, { merge: true });
-            userGoals = { gasto, investimento };
-            updateUI(); // Refresh gauges
-            closeModal('settings-modal');
-        });
-
-        // --- EXCEL IMPORT (Complex Logic) ---
+        // --- IMPORT EXCEL LOGIC (Refatorada) ---
         document.getElementById('file-upload').addEventListener('change', async (e) => {
             const file = e.target.files[0];
-            if(!file || !currentUser) return;
-            
+            if(!file) return;
             const status = document.getElementById('import-status');
-            status.textContent = "Lendo arquivo...";
-            
+            status.textContent = "Processando...";
+            status.className = "text-xs text-brand-accent mt-1 animate-pulse";
+
             const reader = new FileReader();
-            reader.onload = async (e) => {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
+            reader.onload = async (evt) => {
+                const workbook = XLSX.read(evt.target.result, {type: 'array'});
                 const batch = writeBatch(db);
                 let count = 0;
 
                 workbook.SheetNames.forEach(sheetName => {
-                    const sheet = workbook.Sheets[sheetName];
-                    const rows = XLSX.utils.sheet_to_json(sheet, {defval: ""});
-                    if(rows.length === 0) return;
-
-                    // Determine Type
-                    let type = 'despesa';
-                    if(sheetName.toLowerCase().includes('receita') || sheetName.toLowerCase().includes('entrada')) type = 'receita';
-
+                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                    
                     rows.forEach(row => {
-                        // Fuzzy Match Columns
-                        const keys = Object.keys(row).map(k => ({ key: k, lower: k.toLowerCase().trim() }));
+                        // Normaliza chaves (remove espaços e lowercase)
+                        const keys = Object.keys(row).reduce((acc, k) => { acc[k.toLowerCase().trim()] = row[k]; return acc; }, {});
+
+                        // Detecção Inteligente
+                        let type = 'despesa';
+                        if(keys['origem'] || sheetName.toLowerCase().includes('receita')) type = 'receita';
+
+                        // Mapeamento
+                        const val = parseValue(keys['valor'] || keys['quantia'] || keys['total']);
+                        const date = parseDate(keys['data'] || keys['dia']);
                         
-                        const getVal = (terms) => {
-                            const match = keys.find(k => terms.some(t => k.lower.includes(t)));
-                            return match ? row[match.key] : null;
-                        }
-
-                        const desc = getVal(['descrição', 'descricao']) || getVal(['receitas']) || "Sem descrição"; // Title/Description
-                        const categoryName = getVal(['despesa']) || "Geral"; // The "Category" column in Grid comes from "Despesa" in Excel
-                        const type50 = getVal(['tipo 50', '50,30,20', '50, 30, 20', 'tipo']) || "-"; // New field
-                        let valRaw = getVal(['quantia', 'valor', 'total']) || 0;
-                        const dateRaw = getVal(['data', 'dia']);
-                        const bank = getVal(['banco', 'conta', 'instituição']) || "Não informado";
-
-                        // Value Clean
-                        let value = 0;
-                        if(typeof valRaw === 'number') value = valRaw;
-                        else {
-                            const vStr = String(valRaw).replace('R$', '').trim();
-                            value = vStr.includes(',') ? parseFloat(vStr.replace(/\./g,'').replace(',','.')) : parseFloat(vStr);
-                        }
-                        if(isNaN(value)) value = 0;
-
-                        // Date Clean
-                        let date = new Date().toISOString().split('T')[0];
-                        if(dateRaw) {
-                            if(typeof dateRaw === 'number') {
-                                const dObj = XLSX.SSF.parse_date_code(dateRaw);
-                                date = `${dObj.y}-${String(dObj.m).padStart(2,'0')}-${String(dObj.d).padStart(2,'0')}`;
-                            } else if(String(dateRaw).includes('/')) {
-                                const parts = dateRaw.split('/');
-                                if(parts.length===3) date = `${parts[2]}-${parts[1]}-${parts[0]}`;
-                            }
-                        }
-
-                        if(value > 0) {
-                            const ref = doc(collection(db, "transacoes_financeiras"));
-                            batch.set(ref, {
-                                title: desc, 
-                                value, 
-                                date, 
-                                category: categoryName, 
-                                type50, // Save new field
-                                bank, 
-                                type, 
-                                uid: currentUser.uid, 
+                        if(val > 0 && date) {
+                            const docData = {
+                                uid: currentUser.uid,
+                                type: type,
+                                value: val,
+                                date: date,
+                                bank: keys['banco'] || keys['instituição bancária'] || keys['conta'] || 'Não informado',
+                                title: keys['descrição'] || keys['origem'] || 'Sem título',
                                 createdAt: Timestamp.now()
-                            });
+                            };
+
+                            if(type === 'despesa') {
+                                docData.category = keys['categoria'] || keys['despesa'] || 'Outros';
+                                docData.definition = keys['definição'] || keys['tipo'] || 'Outros';
+                                docData.description = keys['descrição'] || '';
+                                docData.externalId = keys['id'] || ''; // Mod 1: Save ID
+                            } else {
+                                docData.origin = keys['origem'] || keys['descrição'];
+                            }
+
+                            batch.set(doc(collection(db, "transacoes_financeiras")), docData);
                             count++;
                         }
                     });
                 });
 
-                if(count > 0) {
-                    await batch.commit();
-                    status.textContent = `${count} importados!`;
-                } else {
-                    status.textContent = "Erro: Colunas não identificadas.";
-                }
-                setTimeout(() => status.textContent = "", 4000);
+                if(count > 0) await batch.commit();
+                status.textContent = `${count} itens importados!`;
+                status.className = "text-xs text-brand-receita mt-1";
+                setTimeout(() => status.textContent = "Clique para carregar planilha", 3000);
             };
             reader.readAsArrayBuffer(file);
         });
 
-        // --- CLEAR DATA ---
-        window.clearAllData = async () => {
-            if(!currentUser || !confirm("ATENÇÃO: Isso apagará TODOS os seus registros. Continuar?")) return;
-            const q = query(collection(db, "transacoes_financeiras"), where("uid", "==", currentUser.uid));
-            const snaps = await getDocs(q);
-            const batch = writeBatch(db);
-            snaps.forEach(d => batch.delete(d.ref));
-            await batch.commit();
-            alert("Dados limpos.");
+        // Utils
+        function parseValue(v) {
+            if(typeof v === 'number') return v;
+            if(!v) return 0;
+            return parseFloat(v.toString().replace('R$', '').replace(/\./g,'').replace(',','.').trim());
         }
-
-        // --- NAV ---
-        window.switchView = (view) => {
-            const dash = document.getElementById('dashboard-view');
-            const grid = document.getElementById('datagrid-view');
-            const navD = document.getElementById('nav-dashboard');
-            const navG = document.getElementById('nav-datagrid');
-            
-            if(view === 'dashboard') {
-                dash.classList.remove('hidden');
-                grid.classList.add('hidden');
-                navD.classList.add('bg-slate-100', 'dark:bg-slate-800', 'text-emerald-500');
-                navG.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'text-emerald-500');
-                updateUI(); // Resize charts
-            } else {
-                dash.classList.add('hidden');
-                grid.classList.remove('hidden');
-                navG.classList.add('bg-slate-100', 'dark:bg-slate-800', 'text-emerald-500');
-                navD.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'text-emerald-500');
+        function parseDate(d) {
+            if(!d) return new Date().toISOString().split('T')[0];
+            if(typeof d === 'number') { // Excel serial date
+                const date = new Date(Math.round((d - 25569)*86400*1000));
+                return date.toISOString().split('T')[0];
             }
+            if(d.includes('/')) {
+                const p = d.split('/');
+                if(p.length === 3) return `${p[2]}-${p[1]}-${p[0]}`;
+            }
+            return d;
         }
-
-        // Init
-        const now = new Date();
-        document.getElementById('current-date-display').textContent = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-        document.getElementById('global-month-filter').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        function formatDate(d) {
+            const p = d.split('-');
+            return `${p[2]}/${p[1]}/${p[0]}`;
+        }
         
+        // Date Display
+        const now = new Date();
+        document.getElementById('current-date').textContent = now.toLocaleDateString('pt-BR', {weekday: 'long', day: 'numeric', month: 'long'});
+
     </script>
 </body>
 </html>
