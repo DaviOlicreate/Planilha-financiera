@@ -460,13 +460,13 @@
     <!-- MODAL SETTINGS -->
     <div id="settings-modal" class="fixed inset-0 z-[75] hidden flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('settings-modal')"></div>
-        <div class="relative w-full max-w-2xl glass bg-[#0f172a] rounded-2xl shadow-2xl border border-slate-700 overflow-hidden animate-slide-up flex flex-col max-h-[80vh]">
+        <div class="relative w-full max-w-2xl glass bg-[#0f172a] rounded-2xl shadow-2xl border border-slate-700 overflow-hidden animate-slide-up flex flex-col max-h-[80vh] z-10">
             <div class="bg-slate-900/50 px-6 py-4 border-b border-slate-700 flex justify-between items-center">
                 <h3 class="font-display text-xl font-bold text-white">Configurações</h3>
-                <button onclick="closeModal('settings-modal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+                <button onclick="closeModal('settings-modal')" class="text-slate-400 hover:text-white pointer-events-auto"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             
-            <div class="p-6 flex-1 overflow-auto">
+            <div class="p-6 flex-1 overflow-auto pointer-events-auto">
                 <!-- Config Metas -->
                 <div class="mb-8 border-b border-slate-700 pb-6">
                     <h4 class="font-display text-white font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-bullseye"></i> Definição de Metas (%)</h4>
@@ -612,8 +612,12 @@
                 document.getElementById('app-content').classList.remove('hidden');
                 document.getElementById('user-name').textContent = user.isAnonymous ? 'Visitante' : user.displayName.split(' ')[0];
                 document.getElementById('user-avatar').src = user.photoURL || "https://ui-avatars.com/api/?name=User&background=3b82f6&color=fff";
-                await initSettings();
-                loadData();
+                try {
+                    await initSettings();
+                    loadData();
+                } catch (e) {
+                    console.error("Init Error:", e);
+                }
             } else {
                 currentUser = null;
                 document.getElementById('login-screen').classList.remove('hidden');
@@ -654,16 +658,20 @@
         async function initSettings() {
             if(!currentUser) return;
             const ref = doc(db, "user_settings", currentUser.uid);
-            const snap = await getDoc(ref);
-            
-            if(snap.exists()) {
-                const data = snap.data();
-                if(data.banks) userSettings.banks = data.banks;
-                if(data.categories) userSettings.categories = data.categories;
-                if(data.goalExpense) userSettings.goalExpense = data.goalExpense;
-                if(data.goalSavings) userSettings.goalSavings = data.goalSavings;
-            } else {
-                await setDoc(ref, userSettings);
+            try {
+                const snap = await getDoc(ref);
+                
+                if(snap.exists()) {
+                    const data = snap.data();
+                    if(data.banks) userSettings.banks = data.banks;
+                    if(data.categories) userSettings.categories = data.categories;
+                    if(data.goalExpense) userSettings.goalExpense = data.goalExpense;
+                    if(data.goalSavings) userSettings.goalSavings = data.goalSavings;
+                } else {
+                    await setDoc(ref, userSettings);
+                }
+            } catch (e) {
+                console.warn("Settings init failed, using defaults", e);
             }
             updateDropdowns();
             
@@ -679,7 +687,9 @@
 
         async function saveSettings() {
             if(!currentUser) return;
-            await setDoc(doc(db, "user_settings", currentUser.uid), userSettings, {merge: true});
+            try {
+                await setDoc(doc(db, "user_settings", currentUser.uid), userSettings, {merge: true});
+            } catch (e) { console.error("Save settings error", e); }
             updateDropdowns();
             renderSettingsList();
             updateInterface(); // Refresh dashboard with new goals
@@ -720,8 +730,10 @@
         function renderSettingsList() {
             const render = (type, listId) => {
                 const ul = document.getElementById(listId);
+                if (!ul) return;
                 ul.innerHTML = '';
-                userSettings[type].forEach(item => {
+                const items = userSettings[type] || [];
+                items.forEach(item => {
                     const li = document.createElement('li');
                     li.className = "flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700";
                     li.innerHTML = `
@@ -738,6 +750,7 @@
         function updateDropdowns() {
             const populate = (id, list) => {
                 const el = document.getElementById(id);
+                if (!el) return;
                 el.innerHTML = '';
                 list.forEach(val => {
                     const opt = document.createElement('option');
