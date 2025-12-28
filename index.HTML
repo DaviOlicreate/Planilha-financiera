@@ -464,7 +464,8 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Valor (R$)</label>
-                        <input type="number" step="0.01" id="form-val" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="0,00">
+                        <!-- CHANGED to text for custom mask -->
+                        <input type="text" id="form-val" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="0,00" oninput="formatCurrencyInput(this)">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Data</label>
@@ -475,35 +476,30 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Banco / Instituição</label>
-                        <input type="text" id="form-bank" list="bank-list" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="Selecione...">
+                        <input type="text" id="form-bank" list="bank-list" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="Selecione ou digite...">
                         <datalist id="bank-list">
-                            <option value="Nubank"><option value="Inter"><option value="Itaú"><option value="Bradesco"><option value="Caixa"><option value="Santander"><option value="Carteira">
+                            <!-- Populated dynamically + defaults -->
                         </datalist>
                     </div>
                     <!-- Campos Dinâmicos (Categoria/Definição) -->
                     <div id="field-cat-container">
                         <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Categoria</label>
-                        <select id="form-cat" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all cursor-pointer appearance-none">
-                            <option value="Moradia">Moradia</option>
-                            <option value="Alimentação">Alimentação</option>
-                            <option value="Transporte">Transporte</option>
-                            <option value="Lazer">Lazer</option>
-                            <option value="Saúde">Saúde</option>
-                            <option value="Educação">Educação</option>
-                            <option value="Investimento">Investimento</option>
-                            <option value="Outros">Outros</option>
-                        </select>
+                        <!-- CHANGED to input+datalist for freedom -->
+                        <input type="text" id="form-cat" list="cat-list" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="Selecione ou digite...">
+                        <datalist id="cat-list">
+                            <!-- Populated dynamically + defaults -->
+                        </datalist>
                     </div>
                 </div>
 
                 <!-- Campo Extra Despesa -->
                 <div id="field-def-container" class="hidden">
                     <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Definição (Regra 50/30/20)</label>
-                    <select id="form-def" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all cursor-pointer appearance-none">
-                        <option value="Necessidades (50%)">Necessidades (50%)</option>
-                        <option value="Desejos (30%)">Desejos (30%)</option>
-                        <option value="Poupança/Dívidas (20%)">Poupança/Dívidas (20%)</option>
-                    </select>
+                    <!-- CHANGED to input+datalist for freedom -->
+                    <input type="text" id="form-def" list="def-list" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="Selecione ou digite...">
+                    <datalist id="def-list">
+                        <!-- Populated dynamically + defaults -->
+                    </datalist>
                 </div>
 
                 <button type="submit" id="btn-save" class="w-full bg-brand-accent hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/20 transition-all mt-4 transform active:scale-[0.98]">
@@ -536,6 +532,11 @@
         let transactions = [];
         let chartInstances = {};
 
+        // Default Options
+        const defaultBanks = ["Nubank", "Inter", "Itaú", "Bradesco", "Caixa", "Santander", "Carteira"];
+        const defaultCats = ["Moradia", "Alimentação", "Transporte", "Lazer", "Saúde", "Educação", "Investimento", "Outros"];
+        const defaultDefs = ["Necessidades (50%)", "Desejos (30%)", "Poupança/Dívidas (20%)"];
+
         // --- AUTH ---
         onAuthStateChanged(auth, (user) => {
             if(user) {
@@ -560,9 +561,42 @@
             const q = query(collection(db, "transacoes_financeiras"), orderBy("date", "desc"));
             onSnapshot(q, (snap) => {
                 transactions = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(t => t.uid === currentUser.uid);
+                updateDropdowns(transactions); // Update dynamic lists based on data
                 updateInterface();
             });
         }
+
+        // --- DYNAMIC DROPDOWNS ---
+        function updateDropdowns(data) {
+            // Extract unique values from existing data
+            const banks = new Set([...defaultBanks, ...data.map(t => t.bank).filter(Boolean)]);
+            const cats = new Set([...defaultCats, ...data.map(t => t.category).filter(Boolean)]);
+            const defs = new Set([...defaultDefs, ...data.map(t => t.definition).filter(Boolean)]);
+
+            const populate = (id, set) => {
+                const el = document.getElementById(id);
+                el.innerHTML = '';
+                Array.from(set).sort().forEach(val => {
+                    const opt = document.createElement('option');
+                    opt.value = val;
+                    el.appendChild(opt);
+                });
+            };
+
+            populate('bank-list', banks);
+            populate('cat-list', cats);
+            populate('def-list', defs);
+        }
+
+        // --- CURRENCY MASK ---
+        window.formatCurrencyInput = (input) => {
+            let value = input.value.replace(/\D/g, "");
+            value = (Number(value) / 100).toLocaleString("pt-BR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            input.value = value === '0,00' ? '' : value;
+        };
 
         // --- UI LOGIC ---
         function updateInterface() {
@@ -840,11 +874,15 @@
         document.getElementById('form-transaction').addEventListener('submit', async (e) => {
             e.preventDefault();
             const type = document.getElementById('form-type').value;
+            // Parse formatted currency back to number
+            const valStr = document.getElementById('form-val').value;
+            const value = parseFloat(valStr.replace(/\./g, '').replace(',', '.'));
+
             const data = {
                 uid: currentUser.uid,
                 type: type,
                 title: document.getElementById('form-desc').value,
-                value: parseFloat(document.getElementById('form-val').value),
+                value: value, // Use parsed value
                 date: document.getElementById('form-date').value,
                 bank: document.getElementById('form-bank').value,
                 createdAt: Timestamp.now()
