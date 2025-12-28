@@ -904,15 +904,18 @@
                     chart.data.datasets.forEach((dataset, i) => {
                         const meta = chart.getDatasetMeta(i);
                         meta.data.forEach((element, index) => {
-                            const data = dataset.data[index];
-                            if(data !== null && data !== undefined) {
-                                const valueStr = new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(data);
-                                ctx.font = 'bold 10px Inter';
-                                ctx.fillStyle = '#cbd5e1'; // Slate-300
-                                ctx.textAlign = 'center';
-                                ctx.textBaseline = 'bottom';
-                                // Draw text slightly above the point
-                                ctx.fillText(valueStr, element.x, element.y - 10);
+                            // Check if element is visible
+                            if (!element.hidden) {
+                                const data = dataset.data[index];
+                                if(data !== null && data !== undefined && data !== 0) { // Only draw if not zero
+                                    const valueStr = new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(data);
+                                    ctx.font = 'bold 10px Inter';
+                                    ctx.fillStyle = '#cbd5e1'; // Slate-300
+                                    ctx.textAlign = 'center';
+                                    ctx.textBaseline = 'bottom';
+                                    // Draw text slightly above the point
+                                    ctx.fillText(valueStr, element.x, element.y - 8);
+                                }
                             }
                         });
                     });
@@ -921,6 +924,7 @@
             };
 
             // Chart D: Gastos vs Investimentos (Anual) - ID: chart-main
+            // Aggregation Logic
             const monthsMap = {};
             for(let i=1; i<=12; i++) {
                 const key = `${currentYear}-${String(i).padStart(2,'0')}`;
@@ -938,44 +942,82 @@
                 }
             });
 
-            const labelsD = Object.keys(monthsMap).sort();
-            const dataExp = labelsD.map(k => monthsMap[k].expense);
-            const dataInv = labelsD.map(k => monthsMap[k].invest);
-            const niceLabels = labelsD.map(k => {
-                const [y, m] = k.split('-');
-                const date = new Date(y, m-1, 1);
-                return date.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase();
-            });
+            // Prepare Data Arrays
+            const monthKeys = Object.keys(monthsMap).sort();
+            const dataExp = monthKeys.map(k => monthsMap[k].expense);
+            const dataInv = monthKeys.map(k => monthsMap[k].invest);
+            
+            // Fixed Labels: JAN, FEV, MAR...
+            const fixedMonthLabels = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
             if(chartInstances.main) chartInstances.main.destroy();
             chartInstances.main = new Chart(document.getElementById('chart-main'), {
                 type: 'bar',
+                plugins: [datalabelsPlugin], // Enable value labels above bars/points
                 data: {
-                    labels: niceLabels,
+                    labels: fixedMonthLabels,
                     datasets: [
                         {
-                            label: 'Investimentos',
+                            label: 'Soma de INVEST. NO MÊS',
                             data: dataInv,
                             type: 'line',
-                            borderColor: '#3b82f6',
-                            backgroundColor: '#3b82f6',
-                            borderWidth: 3,
-                            pointBackgroundColor: '#1e293b',
-                            pointBorderColor: '#3b82f6',
-                            pointBorderWidth: 2,
-                            tension: 0.4,
-                            yAxisID: 'y'
+                            borderColor: '#fbbf24', // Gold/Yellow
+                            backgroundColor: '#fbbf24',
+                            borderWidth: 2,
+                            borderDash: [5, 5], // Dotted line
+                            pointBackgroundColor: '#fbbf24',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 1,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            tension: 0, // Straight lines between points if implied, or keep smooth. Prompt says "Pontos visíveis". Usually financial lines are straight or slight curve. Let's use slight curve 0.
+                            yAxisID: 'y1',
+                            order: 1 // Line on top
                         },
                         {
-                            label: 'Despesas',
+                            label: 'Soma de GASTO NO MÊS',
                             data: dataExp,
-                            backgroundColor: '#ef4444',
-                            borderRadius: 4,
+                            backgroundColor: '#1f2937', // Dark Gray / Almost Black (Slate-800 is #1e293b, Gray-800 is #1f2937). Using specific dark color.
+                            borderRadius: 0, // Solid appearance
+                            borderWidth: 0, // No borders
+                            yAxisID: 'y',
                             order: 2
                         }
                     ]
                 },
-                options: commonOptions
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    layout: { padding: { top: 20 } },
+                    plugins: { 
+                        legend: { 
+                            position: 'bottom',
+                            labels: { color: '#94a3b8', font: {family: 'Inter', size: 11}, usePointStyle: true, boxWidth: 8 } 
+                        },
+                        tooltip: commonOptions.plugins.tooltip
+                    },
+                    scales: {
+                        y: { 
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            grid: { color: '#334155', borderDash: [2, 4] }, 
+                            ticks: { color: '#94a3b8', callback: (val) => val.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0}) } 
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: { drawOnChartArea: false }, // Only right ticks, no grid lines
+                            ticks: { color: '#fbbf24', callback: (val) => val.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0}) }
+                        },
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { color: '#94a3b8' } 
+                        }
+                    }
+                }
             });
 
             // NEW Chart: Top Categories (Restored as Bar) - ID: chart-top-cat
