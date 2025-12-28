@@ -224,8 +224,8 @@
                         </div>
                     </div>
 
-                     <!-- Botão Registrar Receita -->
-                     <div onclick="openModal('receita')" class="menu-card glass p-8 rounded-3xl cursor-pointer group relative overflow-hidden border-l-4 border-brand-receita hover:border-brand-receita">
+                      <!-- Botão Registrar Receita -->
+                      <div onclick="openModal('receita')" class="menu-card glass p-8 rounded-3xl cursor-pointer group relative overflow-hidden border-l-4 border-brand-receita hover:border-brand-receita">
                         <div class="relative z-10">
                             <div class="w-12 h-12 rounded-xl bg-brand-receita/20 text-brand-receita flex items-center justify-center text-xl mb-4 group-hover:rotate-12 transition-transform">
                                 <i class="fa-solid fa-plus"></i>
@@ -451,7 +451,7 @@
         </div>
     </div>
 
-    <!-- MODAL SETTINGS (NOVO) -->
+    <!-- MODAL SETTINGS -->
     <div id="settings-modal" class="fixed inset-0 z-[75] hidden flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('settings-modal')"></div>
         <div class="relative w-full max-w-2xl glass bg-[#0f172a] rounded-2xl shadow-2xl border border-slate-700 overflow-hidden animate-slide-up flex flex-col max-h-[80vh]">
@@ -501,6 +501,7 @@
             
             <form id="form-transaction" class="p-6 space-y-4">
                 <input type="hidden" id="form-type">
+                <input type="hidden" id="form-id"> <!-- ID Oculto para Edição -->
                 
                 <div>
                     <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Descrição / Origem</label>
@@ -557,7 +558,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, where, Timestamp, writeBatch, getDocs, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, updateDoc, doc, query, orderBy, where, Timestamp, writeBatch, getDocs, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBWA5-o7lvPv7zybt1B-k7HdKcgPNYQOEc",
@@ -646,10 +647,12 @@
                 if(data.banks) userSettings.banks = data.banks;
                 if(data.categories) userSettings.categories = data.categories;
             } else {
-                // Create default settings if not exists
                 await setDoc(ref, userSettings);
             }
-            updateDropdowns(); // Init dropdowns
+            updateDropdowns(); 
+            // Inicializar comportamento dos dropdowns
+            setupDropdownBehavior('form-bank');
+            setupDropdownBehavior('form-cat');
         }
 
         async function saveSettings() {
@@ -715,6 +718,33 @@
             populate('bank-list', userSettings.banks);
             populate('cat-list', userSettings.categories);
         }
+        
+        // --- DROPDOWN BEHAVIOR FIX ---
+        // Permite abrir a lista ao focar, mesmo com valor selecionado
+        function setupDropdownBehavior(inputId) {
+            const input = document.getElementById(inputId);
+            let previousValue = "";
+
+            if(!input) return;
+
+            input.addEventListener('focus', () => {
+                previousValue = input.value;
+                input.value = ''; // Limpa para mostrar a lista completa
+            });
+
+            input.addEventListener('blur', () => {
+                // Se o usuário saiu sem escolher nada e o campo ficou vazio, restaura o valor anterior
+                if(input.value === '' && previousValue !== '') {
+                    input.value = previousValue;
+                }
+            });
+            
+            // Se o usuário selecionar algo da lista, o evento 'change' ou 'input' vai preencher o valor corretamente
+            input.addEventListener('input', () => {
+                // Se digitou algo, atualiza previousValue para não restaurar o antigo se sair
+                if(input.value !== '') previousValue = input.value;
+            });
+        }
 
         // --- DATA LOAD ---
         function loadData() {
@@ -749,13 +779,8 @@
                 filteredData = filteredData.filter(t => t.date.startsWith(monthFilter));
             }
 
-            // 2. By Text (Affects Table Primarily, but here we can keep tables filtered by search, and KPIs by month)
-            // But usually KPIs reflect the current view. Let's make KPIs reflect Date Filter ONLY, and tables reflect Both.
-            
-            // Separate lists for KPIs (Date only)
+            // 2. By Text (Affects Table Primarily)
             const kpiData = filteredData; 
-
-            // Separate lists for Tables (Date + Search)
             const tableData = filteredData.filter(t => 
                 (t.title && t.title.toLowerCase().includes(searchFilter)) || 
                 (t.category && t.category.toLowerCase().includes(searchFilter)) ||
@@ -802,7 +827,7 @@
             // Color logic for circle
             circle.style.stroke = percentage > 20 ? '#10b981' : (percentage > 0 ? '#fbbf24' : '#ef4444');
 
-            // 3. Update Charts (Based on KPI Data - Time Filtered)
+            // 3. Update Charts
             updateCharts(receitasKPI, despesasKPI);
         }
 
@@ -820,7 +845,6 @@
                     else if(col === 'value') {
                         const color = type === 'receita' ? 'text-brand-receita' : 'text-brand-despesa';
                         const sign = type === 'receita' ? '+' : '-';
-                        // Using pt-BR formatting manually for comma separator
                         const formattedValue = t.value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                         html += `<td class="px-6 py-4 text-right font-bold ${color}">${sign} ${formattedValue}</td>`;
                     }
@@ -830,9 +854,14 @@
                     else html += `<td class="px-6 py-4 font-medium text-slate-300">${t[col] || '-'}</td>`;
                 });
 
-                // Actions
+                // Actions (Botões Editar e Excluir)
                 html += `<td class="px-6 py-4 text-center">
-                    <button onclick="deleteItem('${t.id}')" class="text-slate-600 hover:text-brand-despesa transition-colors"><i class="fa-solid fa-trash"></i></button>
+                    <button onclick="editItem('${t.id}')" class="text-slate-500 hover:text-brand-accent transition-colors mr-3" title="Editar">
+                        <i class="fa-solid fa-pencil"></i>
+                    </button>
+                    <button onclick="deleteItem('${t.id}')" class="text-slate-600 hover:text-brand-despesa transition-colors" title="Excluir">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
                 </td>`;
 
                 tr.innerHTML = html;
@@ -844,8 +873,38 @@
             if(confirm('Tem certeza?')) await deleteDoc(doc(db, "transacoes_financeiras", id));
         }
 
+        // --- EDIT LOGIC (NOVA) ---
+        window.editItem = (id) => {
+            const item = transactions.find(t => t.id === id);
+            if(!item) return;
+
+            openModal(item.type); // Abre o modal configurado para o tipo (receita/despesa)
+            
+            // Preenche os campos
+            document.getElementById('form-id').value = item.id; // ID para saber que é edição
+            document.getElementById('form-desc').value = item.title;
+            
+            // Formata valor para o input
+            const valStr = (item.value * 100).toString(); 
+            const inputVal = document.getElementById('form-val');
+            inputVal.value = valStr; 
+            formatCurrencyInput(inputVal); // Aplica a máscara visual
+
+            document.getElementById('form-date').value = item.date;
+            document.getElementById('form-bank').value = item.bank;
+
+            if(item.type === 'despesa') {
+                document.getElementById('form-cat').value = item.category;
+                document.getElementById('form-def').value = item.definition;
+            }
+
+            // Altera visual do modal para "Edição"
+            document.getElementById('modal-title').textContent = `Editar ${item.type === 'receita' ? 'Receita' : 'Despesa'}`;
+            document.getElementById('btn-save').textContent = 'Atualizar Registro';
+        }
+
         document.getElementById('grid-search').addEventListener('input', updateInterface);
-        document.getElementById('filter-month').addEventListener('change', updateInterface); // Date Listener
+        document.getElementById('filter-month').addEventListener('change', updateInterface);
 
         window.clearAllData = async () => {
             if(!confirm("CUIDADO: Isso apagará tudo!")) return;
@@ -949,7 +1008,6 @@
             ['home', 'datagrid'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
             document.getElementById(`view-${viewName}`).classList.remove('hidden');
             
-            // Nav Active State
             document.getElementById('nav-home').classList.remove('text-brand-accent', 'bg-slate-800/50');
             document.getElementById('nav-datagrid').classList.remove('text-brand-accent', 'bg-slate-800/50');
             
@@ -957,13 +1015,11 @@
             document.getElementById(`nav-${viewName}`).classList.remove('text-slate-400');
         }
 
-        // --- NEW TAB SWITCH LOGIC ---
         window.switchTableTab = (tab) => {
             if(tab === 'receitas') {
                 document.getElementById('tab-content-receitas').classList.remove('hidden');
                 document.getElementById('tab-content-despesas').classList.add('hidden');
                 
-                // Style Buttons
                 document.getElementById('tab-btn-receitas').classList.add('border-brand-receita', 'text-brand-receita');
                 document.getElementById('tab-btn-receitas').classList.remove('border-transparent', 'text-slate-500');
                 
@@ -973,8 +1029,7 @@
                 document.getElementById('tab-content-receitas').classList.add('hidden');
                 document.getElementById('tab-content-despesas').classList.remove('hidden');
                 
-                // Style Buttons
-                document.getElementById('tab-btn-despesas').classList.add('border-brand-despesa', 'text-brand-despesa'); // Using red for active despesa
+                document.getElementById('tab-btn-despesas').classList.add('border-brand-despesa', 'text-brand-despesa'); 
                 document.getElementById('tab-btn-despesas').classList.remove('border-transparent', 'text-slate-500');
                 
                 document.getElementById('tab-btn-receitas').classList.add('border-transparent', 'text-slate-500');
@@ -992,10 +1047,17 @@
             const modal = document.getElementById('modal');
             if(modal) {
                 modal.classList.remove('hidden');
+                
+                // Reset form visual state (Create Mode by default)
+                document.getElementById('form-id').value = ''; 
                 document.getElementById('form-type').value = type;
                 document.getElementById('modal-title').textContent = type === 'receita' ? 'Nova Receita' : 'Nova Despesa';
                 document.getElementById('modal-title').className = `font-display text-xl font-bold ${type === 'receita' ? 'text-brand-receita' : 'text-brand-despesa'}`;
-                document.getElementById('btn-save').className = `w-full font-bold py-4 rounded-xl shadow-lg transition-all mt-4 text-white ${type === 'receita' ? 'bg-brand-receita hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-brand-despesa hover:bg-rose-600 shadow-rose-500/20'}`;
+                
+                // Reset Button Text
+                const btnSave = document.getElementById('btn-save');
+                btnSave.textContent = 'Salvar Registro';
+                btnSave.className = `w-full font-bold py-4 rounded-xl shadow-lg transition-all mt-4 text-white ${type === 'receita' ? 'bg-brand-receita hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-brand-despesa hover:bg-rose-600 shadow-rose-500/20'}`;
                 
                 // Toggle Fields
                 if(type === 'receita') {
@@ -1005,18 +1067,25 @@
                     document.getElementById('field-cat-container').classList.remove('hidden');
                     document.getElementById('field-def-container').classList.remove('hidden');
                 }
-                document.getElementById('form-date').valueAsDate = new Date();
+                
+                // Reset Form Values if not edit
+                if(!document.getElementById('form-id').value) {
+                    document.getElementById('form-transaction').reset();
+                    document.getElementById('form-type').value = type; // Ensure type sticks
+                    document.getElementById('form-date').valueAsDate = new Date();
+                }
             }
         }
         window.closeModal = (modalId) => {
             document.getElementById(modalId).classList.add('hidden');
         }
 
-        // --- FORM SUBMIT ---
+        // --- FORM SUBMIT (CREATE OR UPDATE) ---
         document.getElementById('form-transaction').addEventListener('submit', async (e) => {
             e.preventDefault();
             const type = document.getElementById('form-type').value;
-            // Parse formatted currency back to number
+            const id = document.getElementById('form-id').value; // Check ID
+
             const valStr = document.getElementById('form-val').value;
             const value = parseFloat(valStr.replace(/\./g, '').replace(',', '.'));
 
@@ -1024,26 +1093,34 @@
                 uid: currentUser.uid,
                 type: type,
                 title: document.getElementById('form-desc').value,
-                value: value, // Use parsed value
+                value: value,
                 date: document.getElementById('form-date').value,
                 bank: document.getElementById('form-bank').value,
-                createdAt: Timestamp.now()
             };
+
+            // Add timestamp only on create
+            if(!id) data.createdAt = Timestamp.now();
 
             if(type === 'despesa') {
                 data.category = document.getElementById('form-cat').value;
                 data.definition = document.getElementById('form-def').value;
             } else {
-                // Mapeando "Origem" (usando Title) para Receita
                 data.origin = data.title; 
             }
 
-            await addDoc(collection(db, "transacoes_financeiras"), data);
+            if(id) {
+                // Update
+                await updateDoc(doc(db, "transacoes_financeiras", id), data);
+            } else {
+                // Create
+                await addDoc(collection(db, "transacoes_financeiras"), data);
+            }
+            
             closeModal('modal');
             document.getElementById('form-transaction').reset();
         });
 
-        // --- IMPORT EXCEL LOGIC (Refatorada) ---
+        // --- IMPORT EXCEL LOGIC ---
         document.getElementById('file-upload').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if(!file) return;
@@ -1061,18 +1138,15 @@
                     const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
                     
                     rows.forEach(row => {
-                        // Normaliza chaves (remove espaços, lowercase e acentos)
                         const keys = Object.keys(row).reduce((acc, k) => { 
                             const cleanKey = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                             acc[cleanKey] = row[k]; 
                             return acc; 
                         }, {});
 
-                        // Detecção Inteligente
                         let type = 'despesa';
                         if(keys['origem'] || sheetName.toLowerCase().includes('receita')) type = 'receita';
 
-                        // Mapeamento
                         const val = parseValue(keys['valor'] || keys['quantia'] || keys['total'] || keys['saida'] || keys['entrada']);
                         const date = parseDate(keys['data'] || keys['dia']);
                         
@@ -1091,7 +1165,7 @@
                                 docData.category = keys['categoria'] || keys['despesa'] || 'Outros';
                                 docData.definition = keys['definicao'] || keys['tipo'] || 'Outros';
                                 docData.description = keys['descricao'] || '';
-                                docData.externalId = keys['id'] || ''; // Mod 1: Save ID
+                                docData.externalId = keys['id'] || '';
                             } else {
                                 docData.origin = keys['origem'] || keys['descricao'];
                             }
@@ -1114,26 +1188,18 @@
         function parseValue(v) {
             if (typeof v === 'number') return v;
             if (!v) return 0;
-            
-            // Convert to string and clean
             let str = v.toString().trim();
-            
-            // Handle Excel Accounting Parentheses for negative: "(1.000,00)" -> "-1.000,00"
             if (str.startsWith('(') && str.endsWith(')')) {
                 str = '-' + str.slice(1, -1);
             }
-            
-            // Remove R$, spaces, and dots (thousands separator in BR)
-            // Replace comma with dot
             str = str.replace(/[R$\s\.]/g, '').replace(',', '.');
-            
             const parsed = parseFloat(str);
             return isNaN(parsed) ? 0 : parsed;
         }
 
         function parseDate(d) {
             if(!d) return new Date().toISOString().split('T')[0];
-            if(typeof d === 'number') { // Excel serial date
+            if(typeof d === 'number') {
                 const date = new Date(Math.round((d - 25569)*86400*1000));
                 return date.toISOString().split('T')[0];
             }
@@ -1148,11 +1214,9 @@
             return `${p[2]}/${p[1]}/${p[0]}`;
         }
         
-        // Date Display & Initial Filter
         const now = new Date();
         document.getElementById('current-date').textContent = now.toLocaleDateString('pt-BR', {weekday: 'long', day: 'numeric', month: 'long'});
         
-        // Set default filter to current month
         const currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
         document.getElementById('filter-month').value = currentMonth;
 
