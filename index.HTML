@@ -839,7 +839,8 @@
             const kpiStatus = document.getElementById('kpi-despesa-status');
             const expenseLimitPercent = userSettings.goalExpense || 80;
             const expenseTargetValue = totalRec > 0 ? totalRec * (expenseLimitPercent / 100) : 0;
-            const expenseCurrentPercent = totalRec > 0 ? (valExp / totalRec) * 100 : 0;
+            // NEW CALCULATION: % of Target (not % of Revenue)
+            const expenseCurrentPercent = expenseTargetValue > 0 ? (valExp / expenseTargetValue) * 100 : 0;
 
             let expenseColorClass = 'text-brand-receita'; // Green default
             let iconClass = 'fa-check';
@@ -864,7 +865,7 @@
                     </div>
                     <div class="flex justify-between items-center text-[10px]">
                         <span class="${expenseColorClass} font-bold"><i class="fa-solid ${iconClass}"></i> ${expenseCurrentPercent.toFixed(1)}%</span>
-                        <span class="text-slate-500">Atingido</span>
+                        <span class="text-slate-500">do Limite</span>
                     </div>
                 </div>
             `;
@@ -876,7 +877,8 @@
             // --- 2. Investimentos (Circle) Card Details ---
             const savingsGoalPercent = userSettings.goalSavings || 20;
             const savingsTargetValue = totalRec > 0 ? totalRec * (savingsGoalPercent / 100) : 0;
-            const savingsActualPercent = totalRec > 0 ? (valInvest / totalRec) * 100 : 0;
+            // NEW CALCULATION: % of Target (not % of Revenue)
+            const savingsActualPercent = savingsTargetValue > 0 ? (valInvest / savingsTargetValue) * 100 : 0;
             
             // Circle Visuals
             const circle = document.getElementById('circle-progress');
@@ -888,8 +890,8 @@
             circle.style.strokeDashoffset = offset;
             
             // Color based on target
-            if(savingsActualPercent >= savingsGoalPercent) circle.style.stroke = '#10b981'; // Green
-            else if(savingsActualPercent >= savingsGoalPercent / 2) circle.style.stroke = '#3b82f6'; // Blue
+            if(savingsActualPercent >= 100) circle.style.stroke = '#10b981'; // Green (Reached Goal)
+            else if(savingsActualPercent >= 50) circle.style.stroke = '#3b82f6'; // Blue
             else circle.style.stroke = '#f59e0b'; // Yellow (Low)
 
             document.getElementById('dash-eco-perc').textContent = `${savingsActualPercent.toFixed(1)}%`;
@@ -904,7 +906,7 @@
                     </div>
                     <div class="flex justify-between w-full text-[10px] font-bold">
                         <span class="text-slate-500">Realizado</span>
-                        <span class="${savingsActualPercent >= savingsGoalPercent ? 'text-brand-receita' : 'text-brand-accent'}">${fmtMoney(valInvest)}</span>
+                        <span class="${savingsActualPercent >= 100 ? 'text-brand-receita' : 'text-brand-accent'}">${fmtMoney(valInvest)}</span>
                     </div>
                 </div>
             `;
