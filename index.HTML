@@ -117,6 +117,11 @@
                     </label>
                     <input type="file" id="file-upload" accept=".xlsx, .xls, .csv" class="hidden">
                     <p id="import-status" class="text-[10px] text-center text-slate-500 h-4 mt-2"></p>
+
+                    <!-- BOTÃO LIMPAR TUDO -->
+                    <button onclick="clearAllData()" class="w-full bg-slate-900 hover:bg-red-950/30 border border-slate-700 hover:border-red-500/50 text-slate-400 hover:text-red-400 font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-sm group">
+                        <i class="fa-solid fa-trash-can group-hover:text-red-500"></i> Limpar Tudo
+                    </button>
                 </div>
 
                 <!-- Navigation -->
@@ -379,7 +384,7 @@
         // Import Firebase SDK
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, where, Timestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, where, Timestamp, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         // --- 1. CONFIGURAÇÃO (CHAVES REAIS) ---
         const firebaseConfig = {
@@ -507,6 +512,72 @@
                 }
             }
         };
+
+        // --- CLEAR ALL DATA LOGIC ---
+        window.clearAllData = async () => {
+            if (!currentUser) {
+                alert("Faça login para realizar essa ação.");
+                return;
+            }
+
+            if (!confirm("⚠️ PERIGO: Você tem certeza que deseja APAGAR TODOS os registros?\n\nEssa ação é irreversível e limpará todo o banco de dados para o seu usuário.")) {
+                return;
+            }
+            
+            // Confirmação dupla
+            if (!confirm("Confirmação final: Deseja realmente excluir tudo? Os dados não poderão ser recuperados.")) {
+                return;
+            }
+
+            const importStatus = document.getElementById('import-status');
+            importStatus.textContent = "Excluindo registros...";
+            importStatus.className = "text-[10px] text-center text-red-400 h-4 mt-2 animate-pulse";
+
+            try {
+                // Busca apenas os dados do usuário atual para deletar
+                const q = query(collection(db, "transacoes_financeiras"), where("uid", "==", currentUser.uid));
+                const snapshot = await getDocs(q);
+
+                if (snapshot.empty) {
+                    importStatus.textContent = "Nenhum registro encontrado para excluir.";
+                    setTimeout(() => { importStatus.textContent = ""; }, 3000);
+                    return;
+                }
+
+                // Batch Delete (Limite do Firestore é 500 por batch)
+                const batchSize = 500;
+                const chunks = [];
+                let currentBatch = writeBatch(db);
+                let count = 0;
+
+                snapshot.docs.forEach((doc, index) => {
+                    currentBatch.delete(doc.ref);
+                    count++;
+                    
+                    // Se o batch encher, salva a promessa e inicia um novo
+                    if (count === batchSize) {
+                        chunks.push(currentBatch.commit());
+                        currentBatch = writeBatch(db);
+                        count = 0;
+                    }
+                });
+                
+                // Commita o último batch se tiver sobrado itens
+                if (count > 0) {
+                    chunks.push(currentBatch.commit());
+                }
+
+                await Promise.all(chunks);
+                
+                importStatus.textContent = "Todos os registros foram excluídos com sucesso.";
+                importStatus.className = "text-[10px] text-center text-emerald-400 h-4 mt-2";
+                setTimeout(() => { importStatus.textContent = ""; }, 5000);
+
+            } catch (error) {
+                console.error("Erro ao limpar:", error);
+                importStatus.textContent = "Erro ao excluir: " + error.message;
+            }
+        }
 
         // --- IMPORTAR PLANILHA LOGIC ---
         const fileInput = document.getElementById('file-upload');
