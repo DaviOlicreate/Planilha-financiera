@@ -965,10 +965,10 @@
             `;
 
             // --- CHARTS UPDATE ---
-            updateCharts(rangeData, startMonth, endMonth);
+            updateCharts(rangeData, startMonth, endMonth, isMerge);
         }
 
-        function updateCharts(rangeData, startMonth, endMonth) {
+        function updateCharts(rangeData, startMonth, endMonth, isMerge) {
             const commonOptions = {
                 responsive: true, 
                 maintainAspectRatio: false,
@@ -1035,44 +1035,81 @@
                 }
             };
 
-            // Chart D: Fluxo Financeiro (Barra/Linha) - Sempre Anual (Ano do Mês Inicial)
-            const selectedYear = startMonth.split('-')[0];
-            const subtitle = document.getElementById('chart-main-subtitle');
-            if(subtitle) subtitle.textContent = `Histórico Anual (${selectedYear})`;
-
-            // 1. Generate keys for JAN to DEC of selected year
-            const annualKeys = [];
-            for (let i = 1; i <= 12; i++) {
-                annualKeys.push(`${selectedYear}-${String(i).padStart(2, '0')}`);
-            }
-
-            // 2. Aggregate Data per Key (Using global transactions to get full year context)
-            const annualMap = {};
-            annualKeys.forEach(k => annualMap[k] = { expense: 0, revenue: 0 });
-
-            // Filter global transactions for the selected year
-            transactions.forEach(t => {
-                // Check if transaction belongs to selected year
-                if (t.date.startsWith(selectedYear)) {
-                    const k = t.date.substring(0, 7);
-                    if(annualMap[k]) {
-                        if(t.type === 'despesa') annualMap[k].expense += t.value;
-                        else if(t.type === 'receita') annualMap[k].revenue += t.value;
-                    }
-                }
-            });
-
-            const dataExp = annualKeys.map(k => annualMap[k].expense);
-            const dataInv = annualKeys.map(k => Math.max(0, annualMap[k].revenue - annualMap[k].expense));
-            
-            // Fixed Labels: JAN to DEZ
-            const labelsMain = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
-
-            if(chartInstances.main) chartInstances.main.destroy();
-            
+            // Chart D: Fluxo Financeiro (Barra/Linha) Logic
+            let dataExp, dataInv, labelsMain;
             const ctxMain = document.getElementById('chart-main').getContext('2d');
             const goldGradient = createGradient(ctxMain, 'rgba(251, 191, 36, 0.7)', 'rgba(251, 191, 36, 0.0)');
             const darkGradient = createGradient(ctxMain, 'rgba(71, 85, 105, 1)', 'rgba(30, 41, 59, 0.6)');
+
+            if (!isMerge) {
+                // MODO ANUAL: Mostra Jan-Dez do ano selecionado
+                const selectedYear = startMonth.split('-')[0];
+                const subtitle = document.getElementById('chart-main-subtitle');
+                if(subtitle) subtitle.textContent = `Histórico Anual (${selectedYear})`;
+
+                const annualKeys = [];
+                for (let i = 1; i <= 12; i++) {
+                    annualKeys.push(`${selectedYear}-${String(i).padStart(2, '0')}`);
+                }
+                const annualMap = {};
+                annualKeys.forEach(k => annualMap[k] = { expense: 0, revenue: 0 });
+
+                // Busca em todas as transações (global)
+                transactions.forEach(t => {
+                    if (t.date.startsWith(selectedYear)) {
+                        const k = t.date.substring(0, 7);
+                        if(annualMap[k]) {
+                            if(t.type === 'despesa') annualMap[k].expense += t.value;
+                            else if(t.type === 'receita') annualMap[k].revenue += t.value;
+                        }
+                    }
+                });
+
+                dataExp = annualKeys.map(k => annualMap[k].expense);
+                dataInv = annualKeys.map(k => Math.max(0, annualMap[k].revenue - annualMap[k].expense));
+                labelsMain = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+
+            } else {
+                // MODO PERÍODO: Mostra apenas o intervalo selecionado
+                const subtitle = document.getElementById('chart-main-subtitle');
+                if(subtitle) subtitle.textContent = `Histórico do Período`;
+
+                const monthKeys = [];
+                const [startY, startM] = startMonth.split('-').map(Number);
+                const [endY, endM] = endMonth.split('-').map(Number);
+                
+                let currY = startY;
+                let currM = startM;
+                let loops = 0;
+                while ((currY < endY || (currY === endY && currM <= endM)) && loops < 60) {
+                    monthKeys.push(`${currY}-${String(currM).padStart(2,'0')}`);
+                    currM++;
+                    if (currM > 12) { currM = 1; currY++; }
+                    loops++;
+                }
+
+                const monthsMap = {};
+                monthKeys.forEach(k => monthsMap[k] = { expense: 0, revenue: 0 });
+
+                // Usa rangeData que já está filtrado
+                rangeData.forEach(t => {
+                    const k = t.date.substring(0, 7);
+                    if(monthsMap[k]) {
+                        if(t.type === 'despesa') monthsMap[k].expense += t.value;
+                        else if(t.type === 'receita') monthsMap[k].revenue += t.value;
+                    }
+                });
+
+                dataExp = monthKeys.map(k => monthsMap[k].expense);
+                dataInv = monthKeys.map(k => Math.max(0, monthsMap[k].revenue - monthsMap[k].expense));
+                labelsMain = monthKeys.map(k => {
+                    const [y, m] = k.split('-');
+                    const monthNames = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+                    return `${monthNames[parseInt(m)-1]}/${y.slice(2)}`;
+                });
+            }
+
+            if(chartInstances.main) chartInstances.main.destroy();
 
             chartInstances.main = new Chart(ctxMain, {
                 type: 'bar',
@@ -1347,276 +1384,3 @@
                 }
             });
         }
-
-        function renderTable(elementId, data, cols, type) {
-            const tbody = document.getElementById(elementId);
-            tbody.innerHTML = '';
-            
-            data.forEach(t => {
-                const tr = document.createElement('tr');
-                tr.className = "table-row-hover border-b border-slate-800 transition-colors";
-                
-                let html = '';
-                cols.forEach(col => {
-                    if(col === 'date') html += `<td class="px-6 py-4 whitespace-nowrap font-mono text-xs text-slate-500">${formatDate(t.date)}</td>`;
-                    else if(col === 'value') {
-                        const color = type === 'receita' ? 'text-brand-receita' : 'text-brand-despesa';
-                        const sign = type === 'receita' ? '+' : '-';
-                        const formattedValue = t.value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                        html += `<td class="px-6 py-4 text-right font-bold ${color}">${sign} ${formattedValue}</td>`;
-                    }
-                    else if(col === 'category' || col === 'definition') {
-                        html += `<td class="px-6 py-4"><span class="bg-slate-800 border border-slate-700 text-xs px-2 py-1 rounded text-slate-300">${t[col] || '-'}</span></td>`;
-                    }
-                    else html += `<td class="px-6 py-4 font-medium text-slate-300">${t[col] || '-'}</td>`;
-                });
-
-                html += `<td class="px-6 py-4 text-center">
-                    <button onclick="editItem('${t.id}')" class="text-slate-500 hover:text-brand-accent transition-colors mr-3" title="Editar"><i class="fa-solid fa-pencil"></i></button>
-                    <button onclick="deleteItem('${t.id}')" class="text-slate-600 hover:text-brand-despesa transition-colors" title="Excluir"><i class="fa-solid fa-trash"></i></button>
-                </td>`;
-
-                tr.innerHTML = html;
-                tbody.appendChild(tr);
-            });
-        }
-
-        window.deleteItem = async (id) => {
-            if(confirm('Tem certeza?')) await deleteDoc(doc(db, "transacoes_financeiras", id));
-        }
-
-        window.editItem = (id) => {
-            const item = transactions.find(t => t.id === id);
-            if(!item) return;
-
-            openModal(item.type);
-            
-            document.getElementById('form-id').value = item.id;
-            document.getElementById('form-desc').value = item.title;
-            
-            const valStr = (item.value * 100).toString(); 
-            const inputVal = document.getElementById('form-val');
-            inputVal.value = valStr; 
-            formatCurrencyInput(inputVal);
-
-            document.getElementById('form-date').value = item.date;
-            document.getElementById('form-bank').value = item.bank;
-
-            if(item.type === 'despesa') {
-                document.getElementById('form-cat').value = item.category;
-                document.getElementById('form-def').value = item.definition;
-            }
-
-            document.getElementById('modal-title').textContent = `Editar ${item.type === 'receita' ? 'Receita' : 'Despesa'}`;
-            document.getElementById('btn-save').textContent = 'Atualizar Registro';
-        }
-
-        document.getElementById('grid-search').addEventListener('input', updateInterface);
-        document.getElementById('filter-month').addEventListener('change', updateInterface);
-        document.getElementById('dash-filter-month-1').addEventListener('change', (e) => window.updateDashboardAnalytics());
-        document.getElementById('dash-filter-month-2').addEventListener('change', (e) => window.updateDashboardAnalytics());
-
-        window.clearAllData = async () => {
-            if(!confirm("CUIDADO: Isso apagará tudo!")) return;
-            const batch = writeBatch(db);
-            transactions.forEach(t => batch.delete(doc(db, "transacoes_financeiras", t.id)));
-            await batch.commit();
-        }
-
-        // --- NAVIGATION & MODALS ---
-        window.switchView = (viewName) => {
-            ['home', 'datagrid'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
-            document.getElementById(`view-${viewName}`).classList.remove('hidden');
-            
-            document.getElementById('nav-home').classList.remove('text-brand-accent', 'bg-slate-800/50');
-            document.getElementById('nav-datagrid').classList.remove('text-brand-accent', 'bg-slate-800/50');
-            
-            document.getElementById(`nav-${viewName}`).classList.add('text-brand-accent', 'bg-slate-800/50');
-            document.getElementById(`nav-${viewName}`).classList.remove('text-slate-400');
-        }
-
-        window.switchTableTab = (tab) => {
-            if(tab === 'receitas') {
-                document.getElementById('tab-content-receitas').classList.remove('hidden');
-                document.getElementById('tab-content-despesas').classList.add('hidden');
-                document.getElementById('tab-btn-receitas').classList.add('border-brand-receita', 'text-brand-receita');
-                document.getElementById('tab-btn-receitas').classList.remove('border-transparent', 'text-slate-500');
-                document.getElementById('tab-btn-despesas').classList.add('border-transparent', 'text-slate-500');
-                document.getElementById('tab-btn-despesas').classList.remove('border-brand-despesa', 'text-brand-despesa');
-            } else {
-                document.getElementById('tab-content-receitas').classList.add('hidden');
-                document.getElementById('tab-content-despesas').classList.remove('hidden');
-                document.getElementById('tab-btn-despesas').classList.add('border-brand-despesa', 'text-brand-despesa'); 
-                document.getElementById('tab-btn-despesas').classList.remove('border-transparent', 'text-slate-500');
-                document.getElementById('tab-btn-receitas').classList.add('border-transparent', 'text-slate-500');
-                document.getElementById('tab-btn-receitas').classList.remove('border-brand-receita', 'text-brand-receita');
-            }
-        }
-
-        window.openDashboardFull = () => {
-            document.getElementById('dashboard-full').classList.add('active');
-            updateInterface(); 
-        }
-        window.closeDashboardFull = () => document.getElementById('dashboard-full').classList.remove('active');
-
-        window.openModal = (type) => {
-            const modal = document.getElementById('modal');
-            if(modal) {
-                modal.classList.remove('hidden');
-                document.getElementById('form-id').value = ''; 
-                document.getElementById('form-type').value = type;
-                document.getElementById('modal-title').textContent = type === 'receita' ? 'Nova Receita' : 'Nova Despesa';
-                document.getElementById('modal-title').className = `font-display text-xl font-bold ${type === 'receita' ? 'text-brand-receita' : 'text-brand-despesa'}`;
-                
-                const btnSave = document.getElementById('btn-save');
-                btnSave.textContent = 'Salvar Registro';
-                btnSave.className = `w-full font-bold py-4 rounded-xl shadow-lg transition-all mt-4 text-white ${type === 'receita' ? 'bg-brand-receita hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-brand-despesa hover:bg-rose-600 shadow-rose-500/20'}`;
-                
-                if(type === 'receita') {
-                    document.getElementById('field-cat-container').classList.add('hidden');
-                    document.getElementById('field-def-container').classList.add('hidden');
-                } else {
-                    document.getElementById('field-cat-container').classList.remove('hidden');
-                    document.getElementById('field-def-container').classList.remove('hidden');
-                }
-                
-                if(!document.getElementById('form-id').value) {
-                    document.getElementById('form-transaction').reset();
-                    document.getElementById('form-type').value = type;
-                    document.getElementById('form-date').valueAsDate = new Date();
-                }
-            }
-        }
-        window.closeModal = (modalId) => {
-            document.getElementById(modalId).classList.add('hidden');
-        }
-
-        document.getElementById('form-transaction').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const type = document.getElementById('form-type').value;
-            const id = document.getElementById('form-id').value;
-
-            const valStr = document.getElementById('form-val').value;
-            const value = parseFloat(valStr.replace(/\./g, '').replace(',', '.'));
-
-            const data = {
-                uid: currentUser.uid,
-                type: type,
-                title: document.getElementById('form-desc').value,
-                value: value,
-                date: document.getElementById('form-date').value,
-                bank: document.getElementById('form-bank').value,
-            };
-
-            if(!id) data.createdAt = Timestamp.now();
-
-            if(type === 'despesa') {
-                data.category = document.getElementById('form-cat').value;
-                data.definition = document.getElementById('form-def').value;
-            } else {
-                data.origin = data.title; 
-            }
-
-            if(id) await updateDoc(doc(db, "transacoes_financeiras", id), data);
-            else await addDoc(collection(db, "transacoes_financeiras"), data);
-            
-            closeModal('modal');
-            document.getElementById('form-transaction').reset();
-        });
-
-        // --- IMPORT EXCEL ---
-        document.getElementById('file-upload').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if(!file) return;
-            const status = document.getElementById('import-status');
-            status.textContent = "Processando...";
-            status.className = "text-xs text-brand-accent mt-1 animate-pulse";
-
-            const reader = new FileReader();
-            reader.onload = async (evt) => {
-                const workbook = XLSX.read(evt.target.result, {type: 'array'});
-                const batch = writeBatch(db);
-                let count = 0;
-
-                workbook.SheetNames.forEach(sheetName => {
-                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-                    rows.forEach(row => {
-                        const keys = Object.keys(row).reduce((acc, k) => { 
-                            const cleanKey = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                            acc[cleanKey] = row[k]; 
-                            return acc; 
-                        }, {});
-
-                        let type = 'despesa';
-                        if(keys['origem'] || sheetName.toLowerCase().includes('receita')) type = 'receita';
-
-                        const val = parseValue(keys['valor'] || keys['quantia'] || keys['total'] || keys['saida'] || keys['entrada']);
-                        const date = parseDate(keys['data'] || keys['dia']);
-                        
-                        if(val > 0 && date) {
-                            const docData = {
-                                uid: currentUser.uid,
-                                type: type,
-                                value: val,
-                                date: date,
-                                bank: keys['banco'] || keys['instituicao bancaria'] || keys['conta'] || 'Não informado',
-                                title: keys['descricao'] || keys['origem'] || 'Sem título',
-                                createdAt: Timestamp.now()
-                            };
-
-                            if(type === 'despesa') {
-                                docData.category = keys['categoria'] || keys['despesa'] || 'Outros';
-                                docData.definition = keys['definicao'] || keys['tipo'] || 'Outros';
-                            } else {
-                                docData.origin = keys['origem'] || keys['descricao'];
-                            }
-
-                            batch.set(doc(collection(db, "transacoes_financeiras")), docData);
-                            count++;
-                        }
-                    });
-                });
-
-                if(count > 0) await batch.commit();
-                status.textContent = `${count} itens importados!`;
-                status.className = "text-xs text-brand-receita mt-1";
-                setTimeout(() => status.textContent = "Clique para carregar planilha", 3000);
-            };
-            reader.readAsArrayBuffer(file);
-        });
-
-        function parseValue(v) {
-            if (typeof v === 'number') return v;
-            if (!v) return 0;
-            let str = v.toString().trim();
-            if (str.startsWith('(') && str.endsWith(')')) str = '-' + str.slice(1, -1);
-            str = str.replace(/[R$\s\.]/g, '').replace(',', '.');
-            const parsed = parseFloat(str);
-            return isNaN(parsed) ? 0 : parsed;
-        }
-
-        function parseDate(d) {
-            if(!d) return new Date().toISOString().split('T')[0];
-            if(typeof d === 'number') {
-                const date = new Date(Math.round((d - 25569)*86400*1000));
-                return date.toISOString().split('T')[0];
-            }
-            if(d.includes('/')) {
-                const p = d.split('/');
-                if(p.length === 3) return `${p[2]}-${p[1]}-${p[0]}`;
-            }
-            return d;
-        }
-        function formatDate(d) {
-            const p = d.split('-');
-            return `${p[2]}/${p[1]}/${p[0]}`;
-        }
-        
-        const now = new Date();
-        document.getElementById('current-date').textContent = now.toLocaleDateString('pt-BR', {weekday: 'long', day: 'numeric', month: 'long'});
-        const currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-        document.getElementById('filter-month').value = currentMonth;
-
-    </script>
-</body>
-</html>
