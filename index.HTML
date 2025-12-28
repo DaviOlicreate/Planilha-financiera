@@ -116,7 +116,7 @@
                         <i class="fa-solid fa-file-import"></i> Importar Planilha
                     </label>
                     <input type="file" id="file-upload" accept=".xlsx, .xls, .csv" class="hidden">
-                    <p id="import-status" class="text-[10px] text-center text-slate-500 h-4"></p>
+                    <p id="import-status" class="text-[10px] text-center text-slate-500 h-4 mt-2"></p>
                 </div>
 
                 <!-- Navigation -->
@@ -452,11 +452,6 @@
         function initDataListener() {
             if (!currentUser) return;
 
-            // Collection reference: transacoes_financeiras
-            // IMPORTANT: Security Rules should allow read/write for this user
-            // We'll assume a basic structure or filter by userID if you implement it later.
-            // For now, fetching all as requested for "Personal Use"
-            
             const q = query(collection(db, "transacoes_financeiras"), orderBy("date", "desc"));
 
             onSnapshot(q, (snapshot) => {
@@ -481,7 +476,7 @@
             const value = parseFloat(document.getElementById('form-value').value);
             const date = document.getElementById('form-date').value;
             const category = document.getElementById('form-category').value;
-            const type = document.getElementById('form-type').value; // 'receita' or 'despesa'
+            const type = document.getElementById('form-type').value;
 
             try {
                 await addDoc(collection(db, "transacoes_financeiras"), {
@@ -490,7 +485,7 @@
                     date,
                     category,
                     type,
-                    uid: currentUser.uid, // Good practice to save who created
+                    uid: currentUser.uid, 
                     createdAt: Timestamp.now()
                 });
                 
@@ -502,7 +497,7 @@
             }
         });
 
-        // Delete Transaction (Global Scope for onclick)
+        // Delete Transaction
         window.deleteTransaction = async (id) => {
             if(confirm("Tem certeza que deseja excluir?")) {
                 try {
@@ -538,117 +533,122 @@
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, {type: 'array'});
                     
-                    // Pega a primeira aba
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    
-                    // Converte para JSON com defval para evitar erros em linhas vazias
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-                    if (jsonData.length === 0) throw new Error("Planilha vazia.");
-
-                    importStatus.textContent = `Processando ${jsonData.length} linhas...`;
-
-                    // Processar e Salvar no Firestore (Batch)
                     const batch = writeBatch(db);
                     let count = 0;
-                    
-                    // Mostra as chaves da primeira linha para ajudar no diagnóstico
-                    console.log("Colunas encontradas:", Object.keys(jsonData[0]));
-                    
                     const collectionRef = collection(db, "transacoes_financeiras");
 
-                    jsonData.forEach((row) => {
-                        // Mapeamento Expandido de Colunas
-                        const keys = Object.keys(row);
-                        const lowerKeys = keys.map(k => k.toLowerCase().trim());
-                        
-                        // Função auxiliar para encontrar a chave correta
-                        const findKey = (terms) => {
-                            const foundIndex = lowerKeys.findIndex(lk => terms.some(t => lk.includes(t)));
-                            return foundIndex >= 0 ? keys[foundIndex] : null;
-                        };
+                    // Loop por TODAS as abas (para pegar Despesas e Receitas)
+                    workbook.SheetNames.forEach(sheetName => {
+                        const worksheet = workbook.Sheets[sheetName];
+                        // defval: "" garante que propriedades vazias não quebrem o loop
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-                        // Lista expandida de termos comuns em exportações bancárias
-                        const dateKey = findKey(['data', 'date', 'dt.', 'dia', 'lancamento']);
-                        const titleKey = findKey(['descri', 'título', 'titulo', 'nome', 'histórico', 'historico', 'loja', 'estabelecimento', 'evento', 'lançamento']);
-                        const valueKey = findKey(['valor', 'amount', 'preço', 'preco', 'total', 'quantia', 'saldo']); // Saldo as fallback
-                        const catKey = findKey(['categ', 'classi', 'tag', 'grupo']);
-                        const typeKey = findKey(['tipo', 'type', 'oper', 'd/c', 'movimento']);
+                        if (jsonData.length === 0) return;
 
-                        // Precisamos pelo menos do Valor para importar
-                        if (valueKey) {
-                            let valStr = String(row[valueKey]);
-                            // Limpeza de moeda (R$ 1.000,00 -> 1000.00)
-                            let val = parseFloat(valStr.replace('R$','').replace(/\./g,'').replace(',','.').trim());
-                            
-                            if (isNaN(val)) val = 0;
+                        console.log(`Processando aba: ${sheetName}`, Object.keys(jsonData[0]));
 
-                            let dateVal = dateKey ? row[dateKey] : null;
-                            let finalDate = new Date().toISOString().split('T')[0]; // Hoje como fallback
-
-                            // Tratamento de Data do Excel (Número serial)
-                            if (typeof dateVal === 'number') {
-                                const dateObj = XLSX.SSF.parse_date_code(dateVal);
-                                finalDate = `${dateObj.y}-${String(dateObj.m).padStart(2,'0')}-${String(dateObj.d).padStart(2,'0')}`;
-                            } else if (typeof dateVal === 'string') {
-                                // Tenta parsing básico (ex: DD/MM/AAAA)
-                                const parts = dateVal.split('/');
-                                if(parts.length === 3) finalDate = `${parts[2]}-${parts[1]}-${parts[0]}`; 
-                            }
-
-                            // Tratamento de Tipo (Receita/Despesa)
-                            let typeVal = 'despesa'; // Padrão seguro
-                            
-                            if (typeKey) {
-                                const rawType = String(row[typeKey]).toLowerCase();
-                                if (rawType.includes('crédito') || rawType.includes('receita') || rawType.includes('entrada') || rawType.includes('c')) {
-                                    typeVal = 'receita';
-                                }
-                            } else {
-                                // Se não tem coluna tipo, tenta adivinhar pelo sinal do valor
-                                // Muitos bancos usam negativo (-) para despesa
-                                if (val > 0 && !valStr.includes('-')) typeVal = 'receita'; 
-                                if (val < 0) typeVal = 'despesa';
-                            }
-                            
-                            // Converte para positivo absoluto para o sistema
-                            val = Math.abs(val);
-
-                            const newDocRef = doc(collectionRef); // Gera ID auto
-                            batch.set(newDocRef, {
-                                title: titleKey ? row[titleKey] : "Sem descrição",
-                                value: val || 0,
-                                date: finalDate,
-                                category: catKey ? row[catKey] : "Importado",
-                                type: typeVal,
-                                uid: currentUser.uid,
-                                createdAt: Timestamp.now()
-                            });
-                            count++;
+                        // Tenta determinar o tipo padrão pela aba
+                        let defaultType = 'despesa';
+                        if (sheetName.toLowerCase().includes('receita') || sheetName.toLowerCase().includes('entrada')) {
+                            defaultType = 'receita';
+                        } else if (sheetName.toLowerCase().includes('despesa') || sheetName.toLowerCase().includes('saída')) {
+                            defaultType = 'despesa';
                         }
+
+                        jsonData.forEach((row) => {
+                            const keys = Object.keys(row);
+                            const lowerKeys = keys.map(k => k.toLowerCase().trim());
+                            
+                            const findKey = (terms) => {
+                                const foundIndex = lowerKeys.findIndex(lk => terms.some(t => lk === t || lk.includes(t)));
+                                return foundIndex >= 0 ? keys[foundIndex] : null;
+                            };
+
+                            // Mapeamento Específico Baseado nas Colunas do Usuário
+                            // Despesas: Despesa, Quantia, Banco, Data, Tipo 50, 30, 20, Descrição, ID
+                            // Receitas: Receitas, Quantia, Banco, Data
+                            
+                            // 1. Título/Descrição
+                            let titleKey = findKey(['despesa', 'receitas', 'receita', 'descrição', 'descricao', 'titulo', 'nome']);
+                            
+                            // 2. Valor (Quantia)
+                            const valueKey = findKey(['quantia', 'valor', 'preço', 'total', 'amount']);
+                            
+                            // 3. Data
+                            const dateKey = findKey(['data', 'date', 'dia']);
+                            
+                            // 4. Categoria (Tipo 50, 30, 20 ou Banco como fallback)
+                            let catKey = findKey(['tipo 50', '50, 30, 20', '50/30/20', 'categ', 'classi']);
+                            // Se não achar "Tipo 50...", tenta "Banco" para categorizar pelo menos a origem
+                            if (!catKey) catKey = findKey(['banco', 'conta']); 
+
+                            if (valueKey) {
+                                let valStr = String(row[valueKey]);
+                                let val = parseFloat(valStr.replace('R$','').replace(/\./g,'').replace(',','.').trim());
+                                if (isNaN(val)) val = 0;
+
+                                let dateVal = dateKey ? row[dateKey] : null;
+                                let finalDate = new Date().toISOString().split('T')[0];
+
+                                if (typeof dateVal === 'number') {
+                                    const dateObj = XLSX.SSF.parse_date_code(dateVal);
+                                    finalDate = `${dateObj.y}-${String(dateObj.m).padStart(2,'0')}-${String(dateObj.d).padStart(2,'0')}`;
+                                } else if (typeof dateVal === 'string') {
+                                    const parts = dateVal.split('/');
+                                    if(parts.length === 3) finalDate = `${parts[2]}-${parts[1]}-${parts[0]}`; 
+                                }
+
+                                // Define Título
+                                // Se a coluna for "Despesa" ou "Receitas", usa o valor dela como título
+                                let rowTitle = "Sem descrição";
+                                if (titleKey) rowTitle = row[titleKey];
+                                
+                                // Se a coluna de título estiver vazia, tenta usar "Descrição" se existir separada (caso da aba Despesa)
+                                if ((!rowTitle || rowTitle === "") && titleKey !== 'Descrição') {
+                                     const descKey = findKey(['descrição', 'descricao']);
+                                     if(descKey) rowTitle = row[descKey];
+                                }
+                                if (!rowTitle || rowTitle === "") rowTitle = "Transação Importada";
+
+
+                                // Define Tipo (Receita/Despesa)
+                                let typeVal = defaultType;
+                                // Se tiver uma coluna "Receitas" com valor, é receita
+                                if (keys.some(k => k.toLowerCase().includes('receita')) && rowTitle && sheetName.toLowerCase().includes('receita')) typeVal = 'receita';
+                                
+                                val = Math.abs(val); // Positivo absoluto
+
+                                const newDocRef = doc(collectionRef); 
+                                batch.set(newDocRef, {
+                                    title: rowTitle,
+                                    value: val,
+                                    date: finalDate,
+                                    category: catKey ? row[catKey] : "Geral",
+                                    type: typeVal,
+                                    uid: currentUser.uid,
+                                    createdAt: Timestamp.now()
+                                });
+                                count++;
+                            }
+                        });
                     });
 
                     if (count > 0) {
                         await batch.commit();
-                        importStatus.textContent = "Sucesso! " + count + " importados.";
-                        importStatus.className = "text-[10px] text-center text-emerald-400 h-4";
+                        importStatus.textContent = "Sucesso! " + count + " itens importados.";
+                        importStatus.className = "text-[10px] text-center text-emerald-400 h-4 mt-2";
                         setTimeout(() => { importStatus.textContent = ""; }, 5000);
                     } else {
-                        console.error("Nenhuma linha processada. Verifique os nomes das colunas.");
-                        throw new Error("Colunas não identificadas. Abra o console (F12) para ver os nomes encontrados.");
+                        throw new Error("Nenhuma linha compatível encontrada nas abas.");
                     }
 
                 } catch (error) {
                     console.error("Erro importação:", error);
                     importStatus.textContent = "Erro: " + error.message;
-                    importStatus.className = "text-[10px] text-center text-red-400 h-4";
+                    importStatus.className = "text-[10px] text-center text-red-400 h-4 mt-2";
                 }
-                
-                // Reset input
                 fileInput.value = "";
             };
-
             reader.readAsArrayBuffer(file);
         }
 
