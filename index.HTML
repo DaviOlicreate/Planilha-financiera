@@ -417,7 +417,7 @@
                 <!-- Bar+Line Main -->
                 <div class="glass p-6 rounded-3xl lg:col-span-2">
                     <h4 class="font-bold text-white mb-1">Fluxo Financeiro</h4>
-                    <p class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Histórico do Período</p>
+                    <p id="chart-main-subtitle" class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Histórico Anual</p>
                     <div class="h-[300px]">
                         <canvas id="chart-main"></canvas>
                     </div>
@@ -1035,48 +1035,38 @@
                 }
             };
 
-            // Chart D: Fluxo Financeiro (Barra/Linha) - Dinâmico pelo Range
-            // 1. Generate all month keys between start and end
-            const monthKeys = [];
-            const [startY, startM] = startMonth.split('-').map(Number);
-            const [endY, endM] = endMonth.split('-').map(Number);
-            
-            let currY = startY;
-            let currM = startM;
-            
-            // Safety break for loop
-            let loops = 0;
-            while ((currY < endY || (currY === endY && currM <= endM)) && loops < 60) {
-                monthKeys.push(`${currY}-${String(currM).padStart(2,'0')}`);
-                currM++;
-                if (currM > 12) {
-                    currM = 1;
-                    currY++;
-                }
-                loops++;
+            // Chart D: Fluxo Financeiro (Barra/Linha) - Sempre Anual (Ano do Mês Inicial)
+            const selectedYear = startMonth.split('-')[0];
+            const subtitle = document.getElementById('chart-main-subtitle');
+            if(subtitle) subtitle.textContent = `Histórico Anual (${selectedYear})`;
+
+            // 1. Generate keys for JAN to DEC of selected year
+            const annualKeys = [];
+            for (let i = 1; i <= 12; i++) {
+                annualKeys.push(`${selectedYear}-${String(i).padStart(2, '0')}`);
             }
 
-            // 2. Aggregate Data per Key
-            const monthsMap = {};
-            monthKeys.forEach(k => monthsMap[k] = { expense: 0, revenue: 0 });
+            // 2. Aggregate Data per Key (Using global transactions to get full year context)
+            const annualMap = {};
+            annualKeys.forEach(k => annualMap[k] = { expense: 0, revenue: 0 });
 
-            rangeData.forEach(t => {
-                const k = t.date.substring(0, 7);
-                if(monthsMap[k]) {
-                    if(t.type === 'despesa') monthsMap[k].expense += t.value;
-                    else if(t.type === 'receita') monthsMap[k].revenue += t.value;
+            // Filter global transactions for the selected year
+            transactions.forEach(t => {
+                // Check if transaction belongs to selected year
+                if (t.date.startsWith(selectedYear)) {
+                    const k = t.date.substring(0, 7);
+                    if(annualMap[k]) {
+                        if(t.type === 'despesa') annualMap[k].expense += t.value;
+                        else if(t.type === 'receita') annualMap[k].revenue += t.value;
+                    }
                 }
             });
 
-            const dataExp = monthKeys.map(k => monthsMap[k].expense);
-            const dataInv = monthKeys.map(k => Math.max(0, monthsMap[k].revenue - monthsMap[k].expense));
+            const dataExp = annualKeys.map(k => annualMap[k].expense);
+            const dataInv = annualKeys.map(k => Math.max(0, annualMap[k].revenue - annualMap[k].expense));
             
-            // Generate friendly labels (e.g., JAN/24)
-            const labelsMain = monthKeys.map(k => {
-                const [y, m] = k.split('-');
-                const monthNames = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
-                return `${monthNames[parseInt(m)-1]}/${y.slice(2)}`;
-            });
+            // Fixed Labels: JAN to DEZ
+            const labelsMain = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
             if(chartInstances.main) chartInstances.main.destroy();
             
