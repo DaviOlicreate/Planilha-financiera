@@ -407,7 +407,7 @@
                 </div>
                 <!-- Categories Bar -->
                 <div class="glass p-6 rounded-3xl">
-                    <h4 id="chart-cat-title" class="font-bold text-white mb-1">Detalhamento de Despesas</h4>
+                    <h4 id="chart-cat-title" class="font-bold text-white mb-1">Top Categorias (Linha)</h4>
                     <p id="chart-cat-subtitle" class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Total do período: R$ 0,00</p>
                     <div class="h-[300px] flex items-center justify-center">
                         <canvas id="chart-cat"></canvas>
@@ -969,13 +969,25 @@
 
             // Chart A: Detalhamento de Despesas (Linha - Mês) - ID: chart-cat
             // Substitui o antigo "Top Categories"
-            // Filter all month expenses, sort by Date
-            const monthExpenses = monthData.filter(t => t.type === 'despesa').sort((a,b) => new Date(a.date) - new Date(b.date));
+            // Filter all month expenses
+            const expenses = monthData.filter(t => t.type === 'despesa');
             
+            // Group by Category
+            const catMap = {};
+            expenses.forEach(t => {
+                const cat = t.category || 'Outros'; 
+                catMap[cat] = (catMap[cat] || 0) + t.value;
+            });
+
+            // Convert to array and sort by Value (Descending)
+            const sortedCats = Object.entries(catMap)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10); 
+
             // Prepare Data
-            const labelsLine = monthExpenses.map(t => t.title);
-            const dataLine = monthExpenses.map(t => t.value);
-            const totalLine = dataLine.reduce((a,b) => a+b, 0);
+            const labelsLine = sortedCats.map(item => item[0]);
+            const dataLine = sortedCats.map(item => item[1]);
+            const totalLine = expenses.reduce((sum, t) => sum + t.value, 0);
 
             // Update Totalizer in DOM
             const fmt = new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'});
