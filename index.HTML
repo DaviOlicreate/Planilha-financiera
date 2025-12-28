@@ -342,9 +342,8 @@
                     <i class="fa-solid fa-arrow-left"></i>
                 </button>
                 <div class="w-px h-6 bg-slate-700 my-auto mx-2"></div>
-                <div class="flex items-center gap-2 px-3">
+                <div class="flex items-center gap-2 px-3 cursor-pointer hover:bg-white/5 rounded-r-full transition-colors" onclick="try{document.getElementById('dash-filter-month').showPicker()}catch(e){document.getElementById('dash-filter-month').focus()}">
                     <span class="text-xs font-bold text-slate-400 uppercase">Mês:</span>
-                    <!-- AQUI FOI A ALTERAÇÃO: Mudei w-32 para w-48 -->
                     <input type="month" id="dash-filter-month" class="bg-transparent text-white font-bold text-sm outline-none border-none w-48 cursor-pointer">
                 </div>
             </div>
