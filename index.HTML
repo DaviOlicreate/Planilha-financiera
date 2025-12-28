@@ -1109,7 +1109,10 @@
                 });
             }
 
-            if(chartInstances.main) chartInstances.main.destroy();
+            if(chartInstances.main) {
+                chartInstances.main.destroy();
+                chartInstances.main = null;
+            }
 
             chartInstances.main = new Chart(ctxMain, {
                 type: 'bar',
@@ -1384,3 +1387,6 @@
                 }
             });
         }
+    </script>
+</body>
+</html>
