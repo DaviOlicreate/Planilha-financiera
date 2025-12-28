@@ -453,11 +453,34 @@
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal('settings-modal')"></div>
         <div class="relative w-full max-w-2xl glass bg-[#0f172a] rounded-2xl shadow-2xl border border-slate-700 overflow-hidden animate-slide-up flex flex-col max-h-[80vh]">
             <div class="bg-slate-900/50 px-6 py-4 border-b border-slate-700 flex justify-between items-center">
-                <h3 class="font-display text-xl font-bold text-white">Configurações de Listas</h3>
+                <h3 class="font-display text-xl font-bold text-white">Configurações</h3>
                 <button onclick="closeModal('settings-modal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             
             <div class="p-6 flex-1 overflow-auto">
+                <!-- Config Metas -->
+                <div class="mb-8 border-b border-slate-700 pb-6">
+                    <h4 class="font-display text-white font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-bullseye"></i> Definição de Metas (%)</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Limite de Gastos</label>
+                            <div class="relative">
+                                <input type="number" id="setting-goal-expense" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-brand-despesa outline-none" placeholder="80" onchange="updateGoal('goalExpense', this.value)">
+                                <span class="absolute right-4 top-2 text-slate-500">%</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-1">Alerta se gastos superarem % da receita.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Meta de Saldo/Inv.</label>
+                            <div class="relative">
+                                <input type="number" id="setting-goal-savings" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-brand-receita outline-none" placeholder="20" onchange="updateGoal('goalSavings', this.value)">
+                                <span class="absolute right-4 top-2 text-slate-500">%</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-1">Objetivo de economia sobre a receita.</p>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <!-- Config Bancos -->
                     <div>
@@ -567,7 +590,9 @@
         // Configurable Lists State
         let userSettings = {
             banks: ["Nubank", "Inter", "Itaú", "Bradesco", "Caixa", "Santander", "Carteira", "XP", "Binance"],
-            categories: ["Moradia", "Alimentação", "Transporte", "Lazer", "Saúde", "Educação", "Investimento", "Assinaturas", "Outros"]
+            categories: ["Moradia", "Alimentação", "Transporte", "Lazer", "Saúde", "Educação", "Investimento", "Assinaturas", "Outros"],
+            goalExpense: 80,
+            goalSavings: 20
         };
 
         // --- AUTH ---
@@ -626,10 +651,19 @@
                 const data = snap.data();
                 if(data.banks) userSettings.banks = data.banks;
                 if(data.categories) userSettings.categories = data.categories;
+                if(data.goalExpense) userSettings.goalExpense = data.goalExpense;
+                if(data.goalSavings) userSettings.goalSavings = data.goalSavings;
             } else {
                 await setDoc(ref, userSettings);
             }
-            updateDropdowns(); 
+            updateDropdowns();
+            
+            // Populate Goal Inputs
+            const expenseInput = document.getElementById('setting-goal-expense');
+            const savingsInput = document.getElementById('setting-goal-savings');
+            if(expenseInput) expenseInput.value = userSettings.goalExpense;
+            if(savingsInput) savingsInput.value = userSettings.goalSavings;
+
             setupDropdownBehavior('form-bank');
             setupDropdownBehavior('form-cat');
         }
@@ -639,11 +673,20 @@
             await setDoc(doc(db, "user_settings", currentUser.uid), userSettings, {merge: true});
             updateDropdowns();
             renderSettingsList();
+            updateInterface(); // Refresh dashboard with new goals
         }
 
         window.openSettings = () => {
             document.getElementById('settings-modal').classList.remove('hidden');
             renderSettingsList();
+        }
+
+        window.updateGoal = async (key, value) => {
+            const val = parseFloat(value);
+            if(!isNaN(val) && val >= 0 && val <= 100) {
+                userSettings[key] = val;
+                await saveSettings();
+            }
         }
 
         window.addSettingItem = async (type, inputId) => {
@@ -798,18 +841,20 @@
             document.getElementById('dash-saldo').textContent = fmt.format(monthBalance);
 
             // Gauge C: Meta de Gastos (Simulação visual no card de Despesas)
-            // Lógica: Se gastos > 80% da receita (e receita > 0), alerta amarelo. Se > 100%, vermelho.
             const cardDespesa = document.getElementById('card-despesa-kpi');
             const kpiStatus = document.getElementById('kpi-despesa-status');
             
+            // Use User Setting for Expense Goal (default 80%)
+            const expenseLimit = (userSettings.goalExpense || 80) / 100;
+
             if(totalRec > 0) {
                 const ratio = valExp / totalRec;
                 if(ratio > 1) {
                     cardDespesa.classList.add('border', 'border-brand-despesa');
                     kpiStatus.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Estouro de Orçamento!</span>`;
-                } else if(ratio > 0.8) {
+                } else if(ratio > expenseLimit) {
                     cardDespesa.classList.add('border', 'border-brand-warning');
-                    kpiStatus.innerHTML = `<i class="fa-solid fa-circle-exclamation text-brand-warning"></i> <span class="text-brand-warning">Atenção (80%+)</span>`;
+                    kpiStatus.innerHTML = `<i class="fa-solid fa-circle-exclamation text-brand-warning"></i> <span class="text-brand-warning">Atenção (${userSettings.goalExpense}%+)</span>`;
                 } else {
                     cardDespesa.classList.remove('border', 'border-brand-despesa', 'border-brand-warning');
                     kpiStatus.innerHTML = `<i class="fa-solid fa-check text-brand-receita"></i> <span class="text-brand-receita">Dentro da meta</span>`;
@@ -819,10 +864,10 @@
             }
 
             // Gauge F: Meta de Investimentos (Usando o SVG Circle)
-            // Meta simulada: 20% da receita líquida deveria ser investimento
             // Savings Rate now uses the calculated Balance (valInvest)
             const savingsRate = totalRec > 0 ? (valInvest / totalRec) * 100 : 0;
-            const savingsGoal = 20; // 20%
+            // Use User Setting for Savings Goal (default 20%)
+            const savingsGoal = userSettings.goalSavings || 20; 
             
             // Normaliza para o círculo (0 a 100%)
             // Se atingiu 20%, o círculo deve estar cheio? Ou mostrar a taxa real? Vamos mostrar a taxa real.
