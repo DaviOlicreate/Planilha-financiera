@@ -263,12 +263,12 @@
             <!-- VIEW: DATAGRID (TABELAS) -->
             <div id="view-datagrid" class="hidden h-full flex flex-col animate-fade-in">
                 <!-- Header Grid -->
-                <div class="px-8 py-6 border-b border-slate-800 bg-slate-900/50 backdrop-blur flex justify-between items-center">
+                <div class="px-8 py-6 border-b border-slate-800 bg-slate-900/50 backdrop-blur flex flex-col md:flex-row justify-between items-center gap-4">
                     <div>
                         <h2 class="font-display text-2xl font-bold text-white">Base de Dados</h2>
                         <p class="text-slate-400 text-sm">Gerenciamento de registros</p>
                     </div>
-                    <div class="flex gap-4">
+                    <div class="flex gap-4 items-center">
                         <!-- Filtro de Mês -->
                         <div class="relative">
                             <input type="month" id="filter-month" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg px-4 py-2 focus:ring-1 focus:ring-brand-accent focus:border-brand-accent outline-none transition-all cursor-pointer">
@@ -277,32 +277,40 @@
                         <!-- Busca -->
                         <div class="relative">
                             <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
-                            <input type="text" id="grid-search" placeholder="Buscar categoria, banco..." class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg pl-9 pr-4 py-2 focus:ring-1 focus:ring-brand-accent focus:border-brand-accent outline-none w-64 transition-all">
+                            <input type="text" id="grid-search" placeholder="Buscar..." class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg pl-9 pr-4 py-2 focus:ring-1 focus:ring-brand-accent focus:border-brand-accent outline-none w-48 lg:w-64 transition-all">
                         </div>
                         <button onclick="clearAllData()" class="px-4 py-2 bg-slate-800 hover:bg-brand-despesa/20 hover:text-brand-despesa text-slate-400 rounded-lg text-sm font-bold transition-all border border-slate-700">
-                            <i class="fa-solid fa-trash-can mr-2"></i> Limpar
+                            <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>
                 </div>
 
-                <!-- Tables Container -->
-                <div class="flex-1 overflow-auto p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Tabs Navigation -->
+                <div class="px-8 pt-6 flex gap-6 border-b border-slate-800">
+                    <button onclick="switchTableTab('receitas')" id="tab-btn-receitas" class="pb-3 px-2 border-b-2 border-brand-receita text-brand-receita font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-up"></i> Receitas
+                        <span id="tab-badge-rec" class="bg-brand-receita/20 text-brand-receita text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
+                    </button>
+                    <button onclick="switchTableTab('despesas')" id="tab-btn-despesas" class="pb-3 px-2 border-b-2 border-transparent text-slate-500 hover:text-white font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-down"></i> Despesas
+                        <span id="tab-badge-desp" class="bg-slate-800 text-slate-400 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
+                    </button>
+                </div>
+
+                <!-- Tables Container (Full Width) -->
+                <div class="flex-1 overflow-auto p-8">
                     
-                    <!-- Table: Receitas -->
-                    <div class="glass rounded-2xl overflow-hidden flex flex-col border-t-4 border-t-brand-receita">
-                        <div class="p-4 bg-slate-800/50 border-b border-slate-700 flex justify-between items-center">
-                            <h3 class="font-bold text-brand-receita flex items-center gap-2"><i class="fa-solid fa-arrow-up"></i> Receitas</h3>
-                            <span id="count-rec" class="text-xs bg-slate-800 px-2 py-1 rounded text-slate-400">0 itens</span>
-                        </div>
+                    <!-- Tab: Receitas -->
+                    <div id="tab-content-receitas" class="h-full flex flex-col glass rounded-2xl overflow-hidden border-t-4 border-t-brand-receita animate-fade-in">
                         <div class="overflow-auto flex-1">
                             <table class="w-full text-left text-sm text-slate-400">
-                                <thead class="text-xs uppercase bg-slate-900/80 text-slate-300 sticky top-0 font-bold tracking-wider">
+                                <thead class="text-xs uppercase bg-slate-900/80 text-slate-300 sticky top-0 font-bold tracking-wider z-10">
                                     <tr>
-                                        <th class="px-4 py-3">Data</th>
-                                        <th class="px-4 py-3">Origem</th>
-                                        <th class="px-4 py-3">Banco</th>
-                                        <th class="px-4 py-3 text-right">Valor</th>
-                                        <th class="px-4 py-3 text-center">Ações</th>
+                                        <th class="px-6 py-4 bg-slate-900/90">Data</th>
+                                        <th class="px-6 py-4 bg-slate-900/90">Origem</th>
+                                        <th class="px-6 py-4 bg-slate-900/90">Banco</th>
+                                        <th class="px-6 py-4 bg-slate-900/90 text-right">Valor</th>
+                                        <th class="px-6 py-4 bg-slate-900/90 text-center">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-receitas" class="divide-y divide-slate-800"></tbody>
@@ -310,23 +318,19 @@
                         </div>
                     </div>
 
-                    <!-- Table: Despesas -->
-                    <div class="glass rounded-2xl overflow-hidden flex flex-col border-t-4 border-t-brand-despesa">
-                        <div class="p-4 bg-slate-800/50 border-b border-slate-700 flex justify-between items-center">
-                            <h3 class="font-bold text-brand-despesa flex items-center gap-2"><i class="fa-solid fa-arrow-down"></i> Despesas</h3>
-                            <span id="count-desp" class="text-xs bg-slate-800 px-2 py-1 rounded text-slate-400">0 itens</span>
-                        </div>
+                    <!-- Tab: Despesas -->
+                    <div id="tab-content-despesas" class="hidden h-full flex flex-col glass rounded-2xl overflow-hidden border-t-4 border-t-brand-despesa animate-fade-in">
                         <div class="overflow-auto flex-1">
                             <table class="w-full text-left text-sm text-slate-400">
-                                <thead class="text-xs uppercase bg-slate-900/80 text-slate-300 sticky top-0 font-bold tracking-wider">
+                                <thead class="text-xs uppercase bg-slate-900/80 text-slate-300 sticky top-0 font-bold tracking-wider z-10">
                                     <tr>
-                                        <th class="px-4 py-3">Data</th>
-                                        <th class="px-4 py-3">Descrição</th>
-                                        <th class="px-4 py-3">Categoria</th>
-                                        <th class="px-4 py-3">Definição</th>
-                                        <th class="px-4 py-3">Banco</th>
-                                        <th class="px-4 py-3 text-right">Valor</th>
-                                        <th class="px-4 py-3 text-center">Ações</th>
+                                        <th class="px-6 py-4 bg-slate-900/90">Data</th>
+                                        <th class="px-6 py-4 bg-slate-900/90">Descrição</th>
+                                        <th class="px-6 py-4 bg-slate-900/90">Categoria</th>
+                                        <th class="px-6 py-4 bg-slate-900/90">Definição</th>
+                                        <th class="px-6 py-4 bg-slate-900/90">Banco</th>
+                                        <th class="px-6 py-4 bg-slate-900/90 text-right">Valor</th>
+                                        <th class="px-6 py-4 bg-slate-900/90 text-center">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-despesas" class="divide-y divide-slate-800"></tbody>
@@ -592,8 +596,9 @@
             renderTable('tbody-receitas', receitasTable, ['date', 'title', 'bank', 'value'], 'receita');
             renderTable('tbody-despesas', despesasTable, ['date', 'title', 'category', 'definition', 'bank', 'value'], 'despesa');
             
-            document.getElementById('count-rec').textContent = `${receitasTable.length} registros`;
-            document.getElementById('count-desp').textContent = `${despesasTable.length} registros`;
+            // Update Badges on Tabs
+            document.getElementById('tab-badge-rec').textContent = receitasTable.length;
+            document.getElementById('tab-badge-desp').textContent = despesasTable.length;
 
             // 2. KPIs Dashboard
             const totalRec = receitasKPI.reduce((sum, t) => sum + t.value, 0);
@@ -633,22 +638,22 @@
                 
                 let html = '';
                 cols.forEach(col => {
-                    if(col === 'date') html += `<td class="px-4 py-4 whitespace-nowrap font-mono text-xs text-slate-500">${formatDate(t.date)}</td>`;
+                    if(col === 'date') html += `<td class="px-6 py-4 whitespace-nowrap font-mono text-xs text-slate-500">${formatDate(t.date)}</td>`;
                     else if(col === 'value') {
                         const color = type === 'receita' ? 'text-brand-receita' : 'text-brand-despesa';
                         const sign = type === 'receita' ? '+' : '-';
                         // Using pt-BR formatting manually for comma separator
                         const formattedValue = t.value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                        html += `<td class="px-4 py-4 text-right font-bold ${color}">${sign} ${formattedValue}</td>`;
+                        html += `<td class="px-6 py-4 text-right font-bold ${color}">${sign} ${formattedValue}</td>`;
                     }
                     else if(col === 'category' || col === 'definition') {
-                        html += `<td class="px-4 py-4"><span class="bg-slate-800 border border-slate-700 text-xs px-2 py-1 rounded text-slate-300">${t[col] || '-'}</span></td>`;
+                        html += `<td class="px-6 py-4"><span class="bg-slate-800 border border-slate-700 text-xs px-2 py-1 rounded text-slate-300">${t[col] || '-'}</span></td>`;
                     }
-                    else html += `<td class="px-4 py-4 font-medium text-slate-300">${t[col] || '-'}</td>`;
+                    else html += `<td class="px-6 py-4 font-medium text-slate-300">${t[col] || '-'}</td>`;
                 });
 
                 // Actions
-                html += `<td class="px-4 py-4 text-center">
+                html += `<td class="px-6 py-4 text-center">
                     <button onclick="deleteItem('${t.id}')" class="text-slate-600 hover:text-brand-despesa transition-colors"><i class="fa-solid fa-trash"></i></button>
                 </td>`;
 
@@ -772,6 +777,31 @@
             
             document.getElementById(`nav-${viewName}`).classList.add('text-brand-accent', 'bg-slate-800/50');
             document.getElementById(`nav-${viewName}`).classList.remove('text-slate-400');
+        }
+
+        // --- NEW TAB SWITCH LOGIC ---
+        window.switchTableTab = (tab) => {
+            if(tab === 'receitas') {
+                document.getElementById('tab-content-receitas').classList.remove('hidden');
+                document.getElementById('tab-content-despesas').classList.add('hidden');
+                
+                // Style Buttons
+                document.getElementById('tab-btn-receitas').classList.add('border-brand-receita', 'text-brand-receita');
+                document.getElementById('tab-btn-receitas').classList.remove('border-transparent', 'text-slate-500');
+                
+                document.getElementById('tab-btn-despesas').classList.add('border-transparent', 'text-slate-500');
+                document.getElementById('tab-btn-despesas').classList.remove('border-brand-despesa', 'text-brand-despesa');
+            } else {
+                document.getElementById('tab-content-receitas').classList.add('hidden');
+                document.getElementById('tab-content-despesas').classList.remove('hidden');
+                
+                // Style Buttons
+                document.getElementById('tab-btn-despesas').classList.add('border-brand-despesa', 'text-brand-despesa'); // Using red for active despesa
+                document.getElementById('tab-btn-despesas').classList.remove('border-transparent', 'text-slate-500');
+                
+                document.getElementById('tab-btn-receitas').classList.add('border-transparent', 'text-slate-500');
+                document.getElementById('tab-btn-receitas').classList.remove('border-brand-receita', 'text-brand-receita');
+            }
         }
 
         window.openDashboardFull = () => {
