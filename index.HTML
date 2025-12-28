@@ -588,14 +588,14 @@
         import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, updateDoc, doc, query, orderBy, where, Timestamp, writeBatch, getDocs, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBWA5-o7lvPv7zybt1B-k7HdKcgPNYQOEc",
-            authDomain: "planilha-financeira-fca35.firebaseapp.com",
-            projectId: "planilha-financeira-fca35",
-            storageBucket: "planilha-financeira-fca35.firebasestorage.app",
-            messagingSenderId: "768116977602",
-            appId: "1:768116977602:web:c824c055bf6f578eee305b"
-        };
+const firebaseConfig = {
+  apiKey: "AIzaSyBWA5-o7lvPv7zybt1B-k7HdKcgPNYQOEc",
+  authDomain: "planilha-financeira-fca35.firebaseapp.com",
+  projectId: "planilha-financeira-fca35",
+  storageBucket: "planilha-financeira-fca35.firebasestorage.app",
+  messagingSenderId: "768116977602",
+  appId: "1:768116977602:web:f40ceaf4e4998352ee305b"
+};
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
