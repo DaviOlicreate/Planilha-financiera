@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle Financeiro Premium</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        serif: ['"Playfair Display"', 'serif'],
+                        sans: ['"Montserrat"', 'sans-serif'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#1e293b', // Custom dark for sidebar
+                            900: '#0f172a', // Main background
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* Glassmorphism Utilities */
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Fade In Animation */
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-200 font-sans antialiased overflow-hidden selection:bg-emerald-500 selection:text-white">
+
+    <!-- ==========================================
+         TELA DE LOGIN
+    ========================================== -->
+    <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 to-slate-900">
+        <div class="glass-panel p-10 rounded-2xl max-w-md w-full text-center border-t border-slate-700 shadow-2xl">
+            <div class="mb-6 flex justify-center">
+                <div class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                    <i class="fa-solid fa-chart-pie text-white text-3xl"></i>
+                </div>
+            </div>
+            <h1 class="font-serif text-3xl font-bold text-white mb-2">Financeiro Pessoal</h1>
+            <p class="text-slate-400 text-sm mb-8 font-light">Gestão inteligente para o seu patrimônio.</p>
+            
+            <button id="btn-login-google" class="w-full bg-white hover:bg-slate-50 text-slate-900 font-bold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl hover:scale-[1.02]">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5">
+                <span>Entrar com Google</span>
+            </button>
+            <p id="login-error" class="text-red-400 text-xs mt-4 hidden"></p>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         APP CONTENT (SIDEBAR + MAIN)
+    ========================================== -->
+    <div id="app-content" class="hidden flex h-screen">
+        
+        <!-- SIDEBAR -->
+        <aside class="w-72 bg-slate-850 border-r border-slate-800 flex flex-col justify-between transition-all duration-300 relative z-20">
+            <div>
+                <!-- Brand -->
+                <div class="h-20 flex items-center px-8 border-b border-slate-800">
+                    <i class="fa-solid fa-wallet text-emerald-500 text-xl mr-3"></i>
+                    <h1 class="font-serif text-xl font-bold text-white tracking-wide">Financeiro<span class="text-emerald-500">.</span></h1>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="p-6 space-y-3">
+                    <button onclick="openModal('receita')" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-emerald-900/50 transition-all flex items-center justify-center gap-2 text-sm group">
+                        <i class="fa-solid fa-plus group-hover:rotate-90 transition-transform"></i> Nova Receita
+                    </button>
+                    <button onclick="openModal('despesa')" class="w-full bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-200 font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-sm">
+                        <i class="fa-solid fa-minus text-red-400"></i> Nova Despesa
+                    </button>
+                </div>
+
+                <!-- Navigation -->
+                <nav class="px-4 space-y-1">
+                    <a href="#" onclick="switchView('dashboard')" id="nav-dashboard" class="nav-item flex items-center gap-4 px-4 py-3.5 rounded-xl text-emerald-400 bg-slate-800/50 font-medium transition-colors">
+                        <i class="fa-solid fa-chart-line w-5 text-center"></i> Dashboard
+                    </a>
+                    <a href="#" onclick="switchView('datagrid')" id="nav-datagrid" class="nav-item flex items-center gap-4 px-4 py-3.5 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors">
+                        <i class="fa-solid fa-table-list w-5 text-center"></i> Base de Dados
+                    </a>
+                    <a href="#" class="nav-item flex items-center gap-4 px-4 py-3.5 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors opacity-50 cursor-not-allowed" title="Em breve">
+                        <i class="fa-solid fa-sack-dollar w-5 text-center"></i> Investimentos
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Footer User -->
+            <div class="p-6 border-t border-slate-800">
+                <div class="flex items-center gap-3 mb-4">
+                    <img id="user-avatar" src="" class="w-10 h-10 rounded-full border-2 border-slate-700">
+                    <div class="overflow-hidden">
+                        <p id="user-name" class="text-sm font-bold text-white truncate">Carregando...</p>
+                        <p class="text-xs text-slate-500">Plano Premium</p>
+                    </div>
+                </div>
+                <button id="btn-logout" class="w-full flex items-center justify-center gap-2 text-xs font-bold text-slate-500 hover:text-red-400 transition-colors uppercase tracking-wider">
+                    <i class="fa-solid fa-right-from-bracket"></i> Sair do Sistema
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN AREA -->
+        <main class="flex-1 bg-slate-900 overflow-y-auto relative">
+            
+            <!-- HEADER MOBILE/DESKTOP -->
+            <header class="sticky top-0 z-10 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-8 py-4 flex justify-between items-center">
+                <div>
+                    <h2 class="font-serif text-2xl font-bold text-white" id="page-title">Visão Geral</h2>
+                    <p class="text-xs text-slate-400" id="current-date-display">...</p>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <!-- Filtro de Data Global -->
+                    <div class="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
+                        <input type="month" id="global-month-filter" class="bg-transparent text-sm text-white px-3 py-1 focus:outline-none font-sans" onchange="filterDataByDate()">
+                    </div>
+                    
+                    <button class="w-10 h-10 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-colors">
+                        <i class="fa-regular fa-bell"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- DASHBOARD VIEW -->
+            <div id="dashboard-view" class="p-8 space-y-8 fade-in pb-20">
+                
+                <!-- KPIs Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Saldo -->
+                    <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group">
+                        <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-wallet text-6xl text-white"></i>
+                        </div>
+                        <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Saldo Atual</p>
+                        <h3 id="kpi-saldo" class="text-2xl font-bold text-white font-serif">R$ --</h3>
+                        <div class="mt-4 h-1 w-full bg-slate-700 rounded-full overflow-hidden">
+                            <div class="h-full bg-blue-500 w-full"></div>
+                        </div>
+                    </div>
+
+                    <!-- Receitas -->
+                    <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group">
+                        <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-arrow-trend-up text-6xl text-emerald-500"></i>
+                        </div>
+                        <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Receitas (Mês)</p>
+                        <h3 id="kpi-receitas" class="text-2xl font-bold text-emerald-400 font-serif">R$ --</h3>
+                        <p class="text-xs text-emerald-600 mt-2 font-medium">+ Entrada Confirmada</p>
+                    </div>
+
+                    <!-- Despesas -->
+                    <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group">
+                        <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-arrow-trend-down text-6xl text-red-500"></i>
+                        </div>
+                        <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Despesas (Mês)</p>
+                        <h3 id="kpi-despesas" class="text-2xl font-bold text-red-400 font-serif">R$ --</h3>
+                        <p class="text-xs text-red-600 mt-2 font-medium">- Saída Prevista</p>
+                    </div>
+
+                    <!-- Economia -->
+                    <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group">
+                        <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-piggy-bank text-6xl text-amber-500"></i>
+                        </div>
+                        <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Taxa de Economia</p>
+                        <h3 id="kpi-economia" class="text-2xl font-bold text-white font-serif">--%</h3>
+                        <p id="kpi-economia-text" class="text-xs text-slate-500 mt-2 font-medium">Baseado em Rec vs Desp</p>
+                    </div>
+                </div>
+
+                <!-- Charts Section 1 -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Line Chart (Main) -->
+                    <div class="glass-panel p-6 rounded-2xl lg:col-span-2 flex flex-col">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-serif text-lg font-bold text-white">Fluxo de Caixa Diário</h3>
+                            <span class="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded border border-slate-700">Últimos 30 dias</span>
+                        </div>
+                        <div class="flex-1 min-h-[300px]">
+                            <canvas id="lineChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Doughnut Chart -->
+                    <div class="glass-panel p-6 rounded-2xl flex flex-col">
+                        <h3 class="font-serif text-lg font-bold text-white mb-6">Categorias (Despesas)</h3>
+                        <div class="flex-1 flex items-center justify-center min-h-[250px]">
+                            <canvas id="doughnutChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section 2 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-panel p-6 rounded-2xl">
+                        <h3 class="font-serif text-lg font-bold text-white mb-6">Balanço Anual (Receitas vs Despesas)</h3>
+                        <div class="min-h-[250px]">
+                            <canvas id="barChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Transactions Mini List -->
+                    <div class="glass-panel p-6 rounded-2xl overflow-hidden flex flex-col">
+                        <h3 class="font-serif text-lg font-bold text-white mb-4">Últimos Lançamentos</h3>
+                        <div class="flex-1 overflow-y-auto pr-2">
+                            <table class="w-full text-left border-collapse">
+                                <tbody id="mini-table-body" class="text-sm">
+                                    <!-- JS will populate -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- DATAGRID VIEW -->
+            <div id="datagrid-view" class="hidden p-8 fade-in h-[calc(100vh-80px)] flex flex-col">
+                <div class="glass-panel rounded-2xl flex-1 flex flex-col overflow-hidden">
+                    
+                    <!-- Toolbar -->
+                    <div class="p-4 border-b border-slate-700 flex flex-wrap gap-4 justify-between items-center bg-slate-800/30">
+                        <div class="flex gap-2">
+                            <button onclick="openModal('receita')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors">
+                                <i class="fa-solid fa-plus mr-1"></i> Receita
+                            </button>
+                            <button onclick="openModal('despesa')" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors">
+                                <i class="fa-solid fa-minus mr-1"></i> Despesa
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                            <input type="text" id="datagrid-search" placeholder="Buscar lançamentos..." class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg pl-9 pr-3 py-2 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 w-64">
+                        </div>
+                    </div>
+
+                    <!-- Table Container -->
+                    <div class="flex-1 overflow-auto">
+                        <table class="w-full text-left text-sm text-slate-400">
+                            <thead class="text-xs text-slate-200 uppercase bg-slate-800 sticky top-0 z-10 font-bold tracking-wider">
+                                <tr>
+                                    <th class="px-6 py-3">Data</th>
+                                    <th class="px-6 py-3">Descrição</th>
+                                    <th class="px-6 py-3">Categoria</th>
+                                    <th class="px-6 py-3">Tipo</th>
+                                    <th class="px-6 py-3 text-right">Valor</th>
+                                    <th class="px-6 py-3 text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="datagrid-body" class="divide-y divide-slate-800">
+                                <!-- JS Populates -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Footer Info -->
+                    <div class="p-3 border-t border-slate-700 bg-slate-800/30 text-xs text-slate-500 flex justify-between">
+                        <span id="datagrid-count">0 registros</span>
+                        <span>Exibindo todos os registros</span>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ==========================================
+         MODAL: NOVA TRANSAÇÃO
+    ========================================== -->
+    <div id="transaction-modal" class="fixed inset-0 z-50 hidden">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity" onclick="closeModal()"></div>
+        
+        <!-- Modal Content -->
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-lg glass-panel rounded-2xl shadow-2xl border border-slate-600 p-0 overflow-hidden">
+            <div class="bg-slate-800/50 px-6 py-4 border-b border-slate-700 flex justify-between items-center">
+                <h3 id="modal-title" class="font-serif text-xl font-bold text-white">Nova Transação</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            
+            <form id="transaction-form" class="p-6 space-y-4">
+                <input type="hidden" id="form-type"> <!-- 'receita' ou 'despesa' -->
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Descrição</label>
+                    <input type="text" id="form-title" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors" placeholder="Ex: Salário, Mercado...">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Valor (R$)</label>
+                        <input type="number" step="0.01" id="form-value" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Data</label>
+                        <input type="date" id="form-date" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Categoria</label>
+                    <select id="form-category" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors cursor-pointer">
+                        <option value="Outros">Outros</option>
+                        <option value="Moradia">Moradia</option>
+                        <option value="Alimentação">Alimentação</option>
+                        <option value="Transporte">Transporte</option>
+                        <option value="Lazer">Lazer</option>
+                        <option value="Saúde">Saúde</option>
+                        <option value="Educação">Educação</option>
+                        <option value="Salário">Salário (Receita)</option>
+                        <option value="Freelance">Freelance (Receita)</option>
+                        <option value="Investimento">Investimento</option>
+                    </select>
+                </div>
+
+                <div class="pt-4">
+                    <button type="submit" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-check"></i> Salvar Lançamento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         JAVASCRIPT LOGIC (MODULE)
+    ========================================== -->
+    <script type="module">
+        // Import Firebase SDK
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, where, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // --- 1. CONFIGURAÇÃO (CHAVES REAIS) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBWA5-o7lvPv7zybt1B-k7HdKcgPNYQOEc",
+            authDomain: "planilha-financeira-fca35.firebaseapp.com",
+            projectId: "planilha-financeira-fca35",
+            storageBucket: "planilha-financeira-fca35.firebasestorage.app",
+            messagingSenderId: "768116977602",
+            appId: "1:768116977602:web:c824c055bf6f578eee305b"
+        };
+
+        // Initialize App
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        // Global State
+        let currentUser = null;
+        let allTransactions = [];
+        let charts = {}; // Store Chart.js instances
+
+        // --- 2. AUTHENTICATION LOGIC ---
+        const loginScreen = document.getElementById('login-screen');
+        const appContent = document.getElementById('app-content');
+        const userAvatar = document.getElementById('user-avatar');
+        const userName = document.getElementById('user-name');
+        const btnLogin = document.getElementById('btn-login-google');
+        const btnLogout = document.getElementById('btn-logout');
+
+        // Observer
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                // UI Update
+                loginScreen.classList.add('hidden');
+                appContent.classList.remove('hidden');
+                userAvatar.src = user.photoURL || 'https://via.placeholder.com/40';
+                userName.textContent = user.displayName || user.email;
+                
+                // Load Data
+                initDataListener();
+            } else {
+                currentUser = null;
+                // UI Update
+                loginScreen.classList.remove('hidden');
+                appContent.classList.add('hidden');
+                allTransactions = [];
+            }
+        });
+
+        // Login Action
+        btnLogin.addEventListener('click', async () => {
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                console.error(error);
+                document.getElementById('login-error').textContent = "Erro ao entrar: " + error.message;
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        });
+
+        // Logout Action
+        btnLogout.addEventListener('click', () => signOut(auth));
+
+
+        // --- 3. DATA LOGIC (FIRESTORE) ---
+        
+        // Setup Real-time Listener
+        function initDataListener() {
+            if (!currentUser) return;
+
+            // Collection reference: transacoes_financeiras
+            // IMPORTANT: Security Rules should allow read/write for this user
+            // We'll assume a basic structure or filter by userID if you implement it later.
+            // For now, fetching all as requested for "Personal Use"
+            
+            const q = query(collection(db, "transacoes_financeiras"), orderBy("date", "desc"));
+
+            onSnapshot(q, (snapshot) => {
+                allTransactions = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                updateUI();
+            }, (error) => {
+                console.error("Erro ao buscar dados:", error);
+            });
+        }
+
+        // Add Transaction
+        const transactionForm = document.getElementById('transaction-form');
+        transactionForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if(!currentUser) return;
+
+            const title = document.getElementById('form-title').value;
+            const value = parseFloat(document.getElementById('form-value').value);
+            const date = document.getElementById('form-date').value;
+            const category = document.getElementById('form-category').value;
+            const type = document.getElementById('form-type').value; // 'receita' or 'despesa'
+
+            try {
+                await addDoc(collection(db, "transacoes_financeiras"), {
+                    title,
+                    value,
+                    date,
+                    category,
+                    type,
+                    uid: currentUser.uid, // Good practice to save who created
+                    createdAt: Timestamp.now()
+                });
+                
+                window.closeModal();
+                transactionForm.reset();
+            } catch (error) {
+                console.error("Erro ao salvar:", error);
+                alert("Erro ao salvar transação.");
+            }
+        });
+
+        // Delete Transaction (Global Scope for onclick)
+        window.deleteTransaction = async (id) => {
+            if(confirm("Tem certeza que deseja excluir?")) {
+                try {
+                    await deleteDoc(doc(db, "transacoes_financeiras", id));
+                } catch (error) {
+                    console.error("Erro ao excluir:", error);
+                }
+            }
+        };
+
+
+        // --- 4. UI UPDATE LOGIC ---
+
+        function updateUI() {
+            const selectedMonth = document.getElementById('global-month-filter').value;
+            
+            // Filter Data based on selection (or all if empty)
+            let filteredData = allTransactions;
+            if (selectedMonth) {
+                filteredData = allTransactions.filter(t => t.date.startsWith(selectedMonth));
+            }
+
+            calculateKPIs(filteredData);
+            renderCharts(filteredData);
+            renderDataGrid(filteredData); // Using filtered for Grid too? usually yes for dashboard context
+            renderMiniList(allTransactions.slice(0, 5)); // Always show most recent global
+        }
+
+        function calculateKPIs(data) {
+            let receita = 0;
+            let despesa = 0;
+
+            data.forEach(t => {
+                if(t.type === 'receita') receita += t.value;
+                if(t.type === 'despesa') despesa += t.value;
+            });
+
+            const saldo = receita - despesa;
+            let economia = receita > 0 ? ((receita - despesa) / receita) * 100 : 0;
+            
+            // Format
+            const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+            
+            document.getElementById('kpi-saldo').textContent = fmt.format(saldo);
+            document.getElementById('kpi-receitas').textContent = fmt.format(receita);
+            document.getElementById('kpi-despesas').textContent = fmt.format(despesa);
+            document.getElementById('kpi-economia').textContent = Math.round(economia) + '%';
+            
+            // Color logic for economy
+            const ecoEl = document.getElementById('kpi-economia');
+            if(economia > 20) ecoEl.className = "text-2xl font-bold text-emerald-400 font-serif";
+            else if(economia > 0) ecoEl.className = "text-2xl font-bold text-amber-400 font-serif";
+            else ecoEl.className = "text-2xl font-bold text-red-400 font-serif";
+        }
+
+        function renderDataGrid(data) {
+            const tbody = document.getElementById('datagrid-body');
+            tbody.innerHTML = '';
+
+            // Search filter
+            const searchTerm = document.getElementById('datagrid-search').value.toLowerCase();
+            const finalData = data.filter(t => 
+                t.title.toLowerCase().includes(searchTerm) || 
+                t.category.toLowerCase().includes(searchTerm)
+            );
+
+            document.getElementById('datagrid-count').textContent = `${finalData.length} registros`;
+
+            if(finalData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-slate-500">Nenhum registro encontrado.</td></tr>';
+                return;
+            }
+
+            finalData.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/50 transition-colors border-b border-slate-800 last:border-0";
+                
+                const fmtValue = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.value);
+                const isReceita = t.type === 'receita';
+                const dateFmt = new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR'); // Fix timezone simple issue
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap font-mono text-xs text-slate-400">${dateFmt}</td>
+                    <td class="px-6 py-4 font-medium text-slate-200">${t.title}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 bg-slate-800 rounded text-xs text-slate-400 border border-slate-700">${t.category}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="text-xs font-bold ${isReceita ? 'text-emerald-400' : 'text-red-400'} uppercase">${t.type}</span>
+                    </td>
+                    <td class="px-6 py-4 text-right font-mono font-bold ${isReceita ? 'text-emerald-400' : 'text-slate-200'}">
+                        ${isReceita ? '+' : '-'} ${fmtValue}
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <button onclick="deleteTransaction('${t.id}')" class="text-slate-500 hover:text-red-400 transition-colors">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderMiniList(data) {
+            const tbody = document.getElementById('mini-table-body');
+            tbody.innerHTML = '';
+            
+            data.forEach(t => {
+                const tr = document.createElement('tr');
+                const isReceita = t.type === 'receita';
+                const fmtValue = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.value);
+                
+                tr.innerHTML = `
+                    <td class="py-2 pl-2">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full ${isReceita ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'} flex items-center justify-center text-xs">
+                                <i class="fa-solid ${isReceita ? 'fa-arrow-up' : 'fa-arrow-down'}"></i>
+                            </div>
+                            <div>
+                                <p class="text-white font-medium">${t.title}</p>
+                                <p class="text-xs text-slate-500">${new Date(t.date+'T12:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="py-2 text-right font-mono text-xs ${isReceita ? 'text-emerald-400' : 'text-slate-300'}">
+                        ${fmtValue}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- 5. CHARTS LOGIC (CHART.JS) ---
+
+        function renderCharts(data) {
+            // Helper: Group Data
+            const groupByCategory = {};
+            const dailyFlow = {};
+            let monthlyReceita = 0, monthlyDespesa = 0;
+
+            // Sort by date for line chart
+            const sortedData = [...data].sort((a,b) => new Date(a.date) - new Date(b.date));
+
+            sortedData.forEach(t => {
+                // Category
+                if(t.type === 'despesa') {
+                    if(!groupByCategory[t.category]) groupByCategory[t.category] = 0;
+                    groupByCategory[t.category] += t.value;
+                    monthlyDespesa += t.value;
+                } else {
+                    monthlyReceita += t.value;
+                }
+
+                // Daily Flow (Cumulative for visual)
+                const d = new Date(t.date+'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+                if(!dailyFlow[d]) dailyFlow[d] = 0;
+                if(t.type === 'despesa') dailyFlow[d] -= t.value;
+                else dailyFlow[d] += t.value;
+            });
+
+            // --- A. LINE CHART (Fluxo) ---
+            const ctxLine = document.getElementById('lineChart').getContext('2d');
+            const lineData = {
+                labels: Object.keys(dailyFlow),
+                datasets: [{
+                    label: 'Fluxo Líquido',
+                    data: Object.values(dailyFlow),
+                    borderColor: '#10b981', // Emerald 500
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#0f172a',
+                    borderWidth: 2
+                }]
+            };
+            
+            if(charts.line) charts.line.destroy();
+            charts.line = new Chart(ctxLine, {
+                type: 'line',
+                data: lineData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    }
+                }
+            });
+
+            // --- B. DOUGHNUT CHART (Categorias) ---
+            const ctxDoughnut = document.getElementById('doughnutChart').getContext('2d');
+            const catLabels = Object.keys(groupByCategory);
+            const catValues = Object.values(groupByCategory);
+            
+            // Generate Colors
+            const baseColors = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899'];
+            
+            if(charts.doughnut) charts.doughnut.destroy();
+            charts.doughnut = new Chart(ctxDoughnut, {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels,
+                    datasets: [{
+                        data: catValues,
+                        backgroundColor: baseColors,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { position: 'right', labels: { color: '#cbd5e1', font: { family: 'Montserrat' } } } 
+                    },
+                    cutout: '70%'
+                }
+            });
+
+            // --- C. BAR CHART (Rec vs Desp) ---
+            const ctxBar = document.getElementById('barChart').getContext('2d');
+            if(charts.bar) charts.bar.destroy();
+            charts.bar = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: ['Balanço do Período'],
+                    datasets: [
+                        { label: 'Receitas', data: [monthlyReceita], backgroundColor: '#10b981', borderRadius: 6 },
+                        { label: 'Despesas', data: [monthlyDespesa], backgroundColor: '#ef4444', borderRadius: 6 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { color: '#cbd5e1' } } },
+                    scales: {
+                        y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                        x: { grid: { display: false }, ticks: { display: false } }
+                    }
+                }
+            });
+        }
+
+
+        // --- 6. UTILS & HELPERS ---
+        
+        // Modal Logic
+        window.openModal = (type) => {
+            const modal = document.getElementById('transaction-modal');
+            const title = document.getElementById('modal-title');
+            const typeInput = document.getElementById('form-type');
+            
+            modal.classList.remove('hidden');
+            typeInput.value = type;
+            
+            if(type === 'receita') {
+                title.textContent = "Nova Receita";
+                title.className = "font-serif text-xl font-bold text-emerald-400";
+            } else {
+                title.textContent = "Nova Despesa";
+                title.className = "font-serif text-xl font-bold text-red-400";
+            }
+            
+            // Set default date to today
+            document.getElementById('form-date').valueAsDate = new Date();
+        }
+
+        window.closeModal = () => {
+            document.getElementById('transaction-modal').classList.add('hidden');
+            transactionForm.reset();
+        }
+
+        // Navigation Logic
+        window.switchView = (viewId) => {
+            const dashboard = document.getElementById('dashboard-view');
+            const datagrid = document.getElementById('datagrid-view');
+            const navDash = document.getElementById('nav-dashboard');
+            const navGrid = document.getElementById('nav-datagrid');
+            const pageTitle = document.getElementById('page-title');
+
+            if(viewId === 'dashboard') {
+                dashboard.classList.remove('hidden');
+                datagrid.classList.add('hidden');
+                pageTitle.textContent = "Visão Geral";
+                
+                navDash.className = "nav-item flex items-center gap-4 px-4 py-3.5 rounded-xl text-emerald-400 bg-slate-800/50 font-medium transition-colors";
+                navGrid.className = "nav-item flex items-center gap-4 px-4 py-3.5 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors";
+            } else {
+                dashboard.classList.add('hidden');
+                datagrid.classList.remove('hidden');
+                pageTitle.textContent = "Base de Dados";
+
+                navDash.className = "nav-item flex items-center gap-4 px-4 py-3.5 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors";
+                navGrid.className = "nav-item flex items-center gap-4 px-4 py-3.5 rounded-xl text-emerald-400 bg-slate-800/50 font-medium transition-colors";
+            }
+        }
+
+        // Date Filter Logic
+        window.filterDataByDate = () => {
+            updateUI();
+        }
+
+        // Search Logic
+        document.getElementById('datagrid-search').addEventListener('input', () => {
+            renderDataGrid(allTransactions); // Re-render with local search
+        });
+
+        // Initialize defaults
+        const now = new Date();
+        document.getElementById('current-date-display').textContent = now.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        // Set Default Month Filter to current month
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        document.getElementById('global-month-filter').value = `${yyyy}-${mm}`;
+
+    </script>
+</body>
+</html>
