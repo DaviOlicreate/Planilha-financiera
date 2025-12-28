@@ -337,29 +337,14 @@
         
         <!-- Dashboard Nav -->
         <div class="fixed top-6 left-1/2 transform -translate-x-1/2 z-50">
-            <div class="glass-strong px-2 py-2 rounded-full flex gap-1 shadow-2xl border border-slate-700/50 items-center transition-all duration-300" id="dash-nav-container">
-                <!-- Back Button -->
+            <div class="glass-strong px-2 py-2 rounded-full flex gap-1 shadow-2xl border border-slate-700/50">
                 <button onclick="closeDashboardFull()" class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Voltar ao Menu">
                     <i class="fa-solid fa-arrow-left"></i>
                 </button>
-                
-                <div class="w-px h-6 bg-slate-700 my-auto mx-1"></div>
-                
-                <!-- Primary Month (Always Visible) -->
-                <div class="flex items-center gap-2 px-2 cursor-pointer hover:bg-white/5 rounded-lg transition-colors relative group" onclick="try{document.getElementById('dash-filter-month-1').showPicker()}catch(e){document.getElementById('dash-filter-month-1').focus()}">
-                    <span class="text-[10px] font-bold text-slate-400 uppercase">Mês:</span>
-                    <input type="month" id="dash-filter-month-1" class="bg-transparent text-white font-bold text-sm outline-none border-none w-40 cursor-pointer text-center">
-                </div>
-
-                <!-- Merge Toggle Button -->
-                <button onclick="toggleMerge()" id="btn-merge" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:text-brand-accent hover:bg-white/10 transition-all ml-1" title="Mesclar Período">
-                    <i class="fa-solid fa-code-merge"></i>
-                </button>
-
-                <!-- Secondary Month (Hidden by Default) -->
-                <div id="container-month-2" class="hidden flex items-center gap-2 px-2 cursor-pointer hover:bg-white/5 rounded-lg transition-colors border-l border-slate-700 ml-1 animate-fade-in" onclick="try{document.getElementById('dash-filter-month-2').showPicker()}catch(e){document.getElementById('dash-filter-month-2').focus()}">
-                    <span class="text-[10px] font-bold text-slate-400 uppercase">Até:</span>
-                    <input type="month" id="dash-filter-month-2" class="bg-transparent text-white font-bold text-sm outline-none border-none w-40 cursor-pointer text-center">
+                <div class="w-px h-6 bg-slate-700 my-auto mx-2"></div>
+                <div class="flex items-center gap-2 px-3 cursor-pointer hover:bg-white/5 rounded-r-full transition-colors" onclick="try{document.getElementById('dash-filter-month').showPicker()}catch(e){document.getElementById('dash-filter-month').focus()}">
+                    <span class="text-xs font-bold text-slate-400 uppercase">Mês:</span>
+                    <input type="month" id="dash-filter-month" class="bg-transparent text-white font-bold text-sm outline-none border-none w-48 cursor-pointer">
                 </div>
             </div>
         </div>
@@ -371,7 +356,7 @@
                 <!-- Saldo -->
                 <div class="glass p-6 rounded-3xl relative overflow-hidden">
                     <div class="absolute -right-6 -top-6 w-32 h-32 bg-brand-accent/10 rounded-full blur-2xl"></div>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Saldo do Período</p>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Saldo em Conta</p>
                     <h3 id="dash-saldo" class="text-4xl font-display font-bold text-white">R$ 0,00</h3>
                     <div class="mt-4 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
                         <div class="h-full bg-brand-accent w-full"></div>
@@ -380,7 +365,7 @@
                 <!-- Receitas -->
                 <div class="glass p-6 rounded-3xl relative overflow-hidden">
                     <div class="absolute -right-6 -top-6 w-32 h-32 bg-brand-receita/10 rounded-full blur-2xl"></div>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Entradas (Período)</p>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Entradas (Mês)</p>
                     <h3 id="dash-rec" class="text-4xl font-display font-bold text-brand-receita">R$ 0,00</h3>
                     <div class="mt-4 flex items-center gap-2 text-xs text-brand-receita">
                         <i class="fa-solid fa-arrow-trend-up"></i> <span>Receitas computadas</span>
@@ -389,7 +374,7 @@
                 <!-- Despesas -->
                 <div class="glass p-6 rounded-3xl relative overflow-hidden border-transparent transition-all" id="card-despesa-kpi">
                     <div class="absolute -right-6 -top-6 w-32 h-32 bg-brand-despesa/10 rounded-full blur-2xl"></div>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Saídas (Período)</p>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Saídas (Mês)</p>
                     <h3 id="dash-desp" class="text-4xl font-display font-bold text-brand-despesa">R$ 0,00</h3>
                     <div class="mt-4 flex items-center gap-2 text-xs text-brand-despesa" id="kpi-despesa-status">
                          <!-- JS Populates status -->
@@ -417,7 +402,7 @@
                 <!-- Bar+Line Main -->
                 <div class="glass p-6 rounded-3xl lg:col-span-2">
                     <h4 class="font-bold text-white mb-1">Fluxo Financeiro</h4>
-                    <p class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Histórico do Período</p>
+                    <p class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Histórico Anual</p>
                     <div class="h-[300px]">
                         <canvas id="chart-main"></canvas>
                     </div>
@@ -425,7 +410,7 @@
                 <!-- Top Categories (Restored Bar) -->
                 <div class="glass p-6 rounded-3xl">
                     <h4 class="font-bold text-white mb-1">Top Categorias</h4>
-                    <p class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Maiores Despesas (Período)</p>
+                    <p class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Maiores Despesas (Mês)</p>
                     <div class="h-[300px] flex items-center justify-center">
                         <canvas id="chart-top-cat"></canvas>
                     </div>
@@ -804,6 +789,7 @@
         function updateInterface() {
             // Filters
             const monthFilter = document.getElementById('filter-month').value; // Datagrid month
+            const dashboardMonth = document.getElementById('dash-filter-month').value; // Dashboard month
             const searchFilter = document.getElementById('grid-search').value.toLowerCase();
 
             // 1. Update Datagrid (Uses global filter)
@@ -827,89 +813,51 @@
 
             // 2. Update Dashboard Analytical (Uses specific dashboard filter)
             if(document.getElementById('dashboard-full').style.display !== 'none' || document.getElementById('dashboard-full').classList.contains('active')) {
-                window.updateDashboardAnalytics();
+                updateDashboardAnalytics(dashboardMonth);
             }
         }
 
-        window.toggleMerge = () => {
-            const btn = document.getElementById('btn-merge');
-            const container2 = document.getElementById('container-month-2');
-            const isHidden = container2.classList.contains('hidden');
-            
-            if(isHidden) {
-                container2.classList.remove('hidden');
-                btn.classList.add('text-brand-accent', 'bg-white/10');
-                btn.classList.remove('text-slate-500');
-            } else {
-                container2.classList.add('hidden');
-                btn.classList.remove('text-brand-accent', 'bg-white/10');
-                btn.classList.add('text-slate-500');
-            }
-            window.updateDashboardAnalytics();
-        }
-
-        window.updateDashboardAnalytics = () => {
-            // Check state
-            const isMerge = !document.getElementById('container-month-2').classList.contains('hidden');
-            
-            let startMonth = document.getElementById('dash-filter-month-1').value;
-            let endMonth = isMerge ? document.getElementById('dash-filter-month-2').value : startMonth;
-
-            // Defaults if empty
-            const now = new Date();
-            const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-
-            if(!startMonth) {
-                startMonth = currentMonthStr;
-                document.getElementById('dash-filter-month-1').value = startMonth;
-            }
-            // If merge is ON but no date selected, default to startMonth
-            if(isMerge && !endMonth) {
-                endMonth = startMonth;
-            }
-            // If merge is OFF, force end = start
-            if(!isMerge) {
-                endMonth = startMonth;
+        function updateDashboardAnalytics(selectedMonth) {
+            // Se nenhum mês selecionado no dashboard, usa o atual
+            if(!selectedMonth) {
+                const now = new Date();
+                selectedMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+                document.getElementById('dash-filter-month').value = selectedMonth;
             }
 
-            // Swap if start > end to prevent bugs
-            if(startMonth > endMonth) {
-                [startMonth, endMonth] = [endMonth, startMonth];
-            }
-            
+            const currentYear = selectedMonth.split('-')[0];
             const fmtMoney = (v) => new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(v);
 
-            // Filter by Range (Inclusive)
-            const rangeData = transactions.filter(t => {
-                const tMonth = t.date.substring(0, 7);
-                return tMonth >= startMonth && tMonth <= endMonth;
-            });
+            // Data Subsets
+            const monthData = transactions.filter(t => t.date.startsWith(selectedMonth));
+            const yearData = transactions.filter(t => t.date.startsWith(currentYear));
 
-            // KPIs Calculation (Sum of entire range)
-            const totalRec = rangeData.filter(t => t.type === 'receita').reduce((sum, t) => sum + t.value, 0);
-            const valExp = rangeData.filter(t => t.type === 'despesa').reduce((sum, t) => sum + t.value, 0);
-            const balance = totalRec - valExp;
-            const valInvest = balance; 
+            // KPIs Calculation
+            const totalRec = monthData.filter(t => t.type === 'receita').reduce((sum, t) => sum + t.value, 0);
+            const valExp = monthData.filter(t => t.type === 'despesa').reduce((sum, t) => sum + t.value, 0);
+            const monthBalance = totalRec - valExp;
+            const valInvest = monthBalance; 
 
             // Update DOM KPIs
             document.getElementById('dash-rec').textContent = fmtMoney(totalRec);
             document.getElementById('dash-desp').textContent = fmtMoney(valExp);
-            document.getElementById('dash-saldo').textContent = fmtMoney(balance);
+            document.getElementById('dash-saldo').textContent = fmtMoney(monthBalance);
 
             // --- 1. Despesas Card Details ---
             const kpiStatus = document.getElementById('kpi-despesa-status');
             const expenseLimitPercent = userSettings.goalExpense || 80;
             const expenseTargetValue = totalRec > 0 ? totalRec * (expenseLimitPercent / 100) : 0;
+            // NEW CALCULATION: % of Target (not % of Revenue)
             const expenseCurrentPercent = expenseTargetValue > 0 ? (valExp / expenseTargetValue) * 100 : 0;
 
-            let expenseColorClass = 'text-brand-receita'; 
+            let expenseColorClass = 'text-brand-receita'; // Green default
             let iconClass = 'fa-check';
 
             if (valExp > expenseTargetValue) {
-                expenseColorClass = 'text-brand-despesa'; 
+                expenseColorClass = 'text-brand-despesa'; // Red
                 iconClass = 'fa-triangle-exclamation';
             } else if (valExp > expenseTargetValue * 0.9) {
-                expenseColorClass = 'text-brand-warning'; 
+                expenseColorClass = 'text-brand-warning'; // Yellow
                 iconClass = 'fa-circle-exclamation';
             }
 
@@ -929,27 +877,34 @@
                     </div>
                 </div>
             `;
+
+            // Remove card border visual cue as now we have detail inside
             document.getElementById('card-despesa-kpi').className = "glass p-6 rounded-3xl relative overflow-hidden border-transparent transition-all";
+
 
             // --- 2. Investimentos (Circle) Card Details ---
             const savingsGoalPercent = userSettings.goalSavings || 20;
             const savingsTargetValue = totalRec > 0 ? totalRec * (savingsGoalPercent / 100) : 0;
+            // NEW CALCULATION: % of Target (not % of Revenue)
             const savingsActualPercent = savingsTargetValue > 0 ? (valInvest / savingsTargetValue) * 100 : 0;
             
+            // Circle Visuals
             const circle = document.getElementById('circle-progress');
             const radius = circle.r.baseVal.value;
             const circumference = radius * 2 * Math.PI;
-            const visualPercent = Math.max(0, Math.min(savingsActualPercent, 100)); 
+            const visualPercent = Math.max(0, Math.min(savingsActualPercent, 100)); // Clamp 0-100 for drawing
             const offset = circumference - (visualPercent / 100) * circumference;
             
             circle.style.strokeDashoffset = offset;
             
-            if(savingsActualPercent >= 100) circle.style.stroke = '#10b981'; 
-            else if(savingsActualPercent >= 50) circle.style.stroke = '#3b82f6'; 
-            else circle.style.stroke = '#f59e0b'; 
+            // Color based on target
+            if(savingsActualPercent >= 100) circle.style.stroke = '#10b981'; // Green (Reached Goal)
+            else if(savingsActualPercent >= 50) circle.style.stroke = '#3b82f6'; // Blue
+            else circle.style.stroke = '#f59e0b'; // Yellow (Low)
 
             document.getElementById('dash-eco-perc').textContent = `${savingsActualPercent.toFixed(1)}%`;
 
+            // HTML Injection for Investment Label
             const invLabel = document.getElementById('label-inv-goal');
             invLabel.innerHTML = `
                 <div class="flex flex-col items-center mt-3 w-full">
@@ -965,10 +920,10 @@
             `;
 
             // --- CHARTS UPDATE ---
-            updateCharts(rangeData, startMonth, endMonth);
+            updateCharts(yearData, monthData, currentYear);
         }
 
-        function updateCharts(rangeData, startMonth, endMonth) {
+        function updateCharts(yearData, monthData, currentYear) {
             const commonOptions = {
                 responsive: true, 
                 maintainAspectRatio: false,
@@ -991,6 +946,7 @@
                                 }
                                 return label;
                             },
+                            // Handle Horizontal Bar x-axis formatting
                             label: function(context) {
                                 let val = context.raw;
                                 return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -1010,6 +966,7 @@
                 }
             };
 
+            // Custom Plugin to Draw Data Labels above points (Only used for Timeline)
             const datalabelsPlugin = {
                 id: 'datalabels',
                 afterDatasetsDraw(chart, args, options) {
@@ -1018,14 +975,16 @@
                     chart.data.datasets.forEach((dataset, i) => {
                         const meta = chart.getDatasetMeta(i);
                         meta.data.forEach((element, index) => {
+                            // Check if element is visible
                             if (!element.hidden) {
                                 const data = dataset.data[index];
-                                if(data !== null && data !== undefined && data !== 0) { 
+                                if(data !== null && data !== undefined && data !== 0) { // Only draw if not zero
                                     const valueStr = new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(data);
                                     ctx.font = 'bold 10px Inter';
-                                    ctx.fillStyle = '#cbd5e1'; 
+                                    ctx.fillStyle = '#cbd5e1'; // Slate-300
                                     ctx.textAlign = 'center';
                                     ctx.textBaseline = 'bottom';
+                                    // Draw text slightly above the point
                                     ctx.fillText(valueStr, element.x, element.y - 8);
                                 }
                             }
@@ -1035,84 +994,70 @@
                 }
             };
 
-            // Chart D: Fluxo Financeiro (Barra/Linha) - Dinâmico pelo Range
-            // 1. Generate all month keys between start and end
-            const monthKeys = [];
-            const [startY, startM] = startMonth.split('-').map(Number);
-            const [endY, endM] = endMonth.split('-').map(Number);
-            
-            let currY = startY;
-            let currM = startM;
-            
-            // Safety break for loop
-            let loops = 0;
-            while ((currY < endY || (currY === endY && currM <= endM)) && loops < 60) {
-                monthKeys.push(`${currY}-${String(currM).padStart(2,'0')}`);
-                currM++;
-                if (currM > 12) {
-                    currM = 1;
-                    currY++;
-                }
-                loops++;
+            // Chart D: Gastos vs Investimentos (Anual) - ID: chart-main
+            // Aggregation Logic
+            const monthsMap = {};
+            for(let i=1; i<=12; i++) {
+                const key = `${currentYear}-${String(i).padStart(2,'0')}`;
+                monthsMap[key] = { expense: 0, revenue: 0 }; // Updated to track revenue for balance calculation
             }
 
-            // 2. Aggregate Data per Key
-            const monthsMap = {};
-            monthKeys.forEach(k => monthsMap[k] = { expense: 0, revenue: 0 });
-
-            rangeData.forEach(t => {
+            yearData.forEach(t => {
                 const k = t.date.substring(0, 7);
                 if(monthsMap[k]) {
-                    if(t.type === 'despesa') monthsMap[k].expense += t.value;
-                    else if(t.type === 'receita') monthsMap[k].revenue += t.value;
+                    if(t.type === 'despesa') {
+                        monthsMap[k].expense += t.value;
+                    } else if(t.type === 'receita') {
+                        monthsMap[k].revenue += t.value;
+                    }
                 }
             });
 
+            // Prepare Data Arrays
+            const monthKeys = Object.keys(monthsMap).sort();
             const dataExp = monthKeys.map(k => monthsMap[k].expense);
+            // Investment is now Balance: Revenue - Expense
             const dataInv = monthKeys.map(k => Math.max(0, monthsMap[k].revenue - monthsMap[k].expense));
             
-            // Generate friendly labels (e.g., JAN/24)
-            const labelsMain = monthKeys.map(k => {
-                const [y, m] = k.split('-');
-                const monthNames = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
-                return `${monthNames[parseInt(m)-1]}/${y.slice(2)}`;
-            });
+            // Fixed Labels: JAN, FEV, MAR...
+            const fixedMonthLabels = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
             if(chartInstances.main) chartInstances.main.destroy();
             
+            // Contexts for gradients
             const ctxMain = document.getElementById('chart-main').getContext('2d');
             const goldGradient = createGradient(ctxMain, 'rgba(251, 191, 36, 0.7)', 'rgba(251, 191, 36, 0.0)');
-            const darkGradient = createGradient(ctxMain, 'rgba(71, 85, 105, 1)', 'rgba(30, 41, 59, 0.6)');
+            const darkGradient = createGradient(ctxMain, 'rgba(71, 85, 105, 1)', 'rgba(30, 41, 59, 0.6)'); // Slate 600 -> Slate 800
 
             chartInstances.main = new Chart(ctxMain, {
                 type: 'bar',
-                plugins: [datalabelsPlugin],
+                plugins: [datalabelsPlugin], // Enable value labels above bars/points
                 data: {
-                    labels: labelsMain,
+                    labels: fixedMonthLabels,
                     datasets: [
                         {
-                            label: 'Saldo/Invest.',
+                            label: 'Soma de INVEST. NO MÊS',
                             data: dataInv,
                             type: 'line',
-                            borderColor: '#fbbf24',
-                            backgroundColor: goldGradient,
+                            borderColor: '#fbbf24', // Gold/Yellow
+                            backgroundColor: goldGradient, // Glassy Gradient
                             borderWidth: 2,
-                            borderDash: [5, 5],
+                            borderDash: [5, 5], // Dotted line
                             pointBackgroundColor: '#fbbf24',
                             pointBorderColor: '#fff',
                             pointBorderWidth: 1,
                             pointRadius: 4,
                             pointHoverRadius: 6,
-                            fill: true,
-                            tension: 0.4,
+                            fill: true, // Enable fill for gradient
+                            tension: 0.4, // Smooth curve
                             yAxisID: 'y1',
-                            order: 1
+                            order: 1 // Line on top
                         },
                         {
-                            label: 'Despesas',
+                            label: 'Soma de GASTO NO MÊS',
                             data: dataExp,
-                            backgroundColor: darkGradient,
-                            borderColor: 'rgba(255,255,255,0.2)',
+                            backgroundColor: darkGradient, // Glassy Dark Gradient
+                            borderColor: 'rgba(255,255,255,0.2)', // Subtle border
                             borderWidth: 1,
                             borderRadius: 2, 
                             yAxisID: 'y',
@@ -1144,7 +1089,7 @@
                             type: 'linear',
                             display: true,
                             position: 'right',
-                            grid: { drawOnChartArea: false },
+                            grid: { drawOnChartArea: false }, // Only right ticks, no grid lines
                             ticks: { color: '#fbbf24', callback: (val) => val.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0}) }
                         },
                         x: { 
@@ -1156,7 +1101,7 @@
             });
 
             // NEW Chart: Top Categories (Restored as Bar) - ID: chart-top-cat
-            const expenses = rangeData.filter(t => t.type === 'despesa');
+            const expenses = monthData.filter(t => t.type === 'despesa');
             const catMap = {};
             expenses.forEach(t => {
                 const cat = t.category || 'Outros'; 
@@ -1167,11 +1112,12 @@
             if(chartInstances.topCat) chartInstances.topCat.destroy();
             
             const ctxTopCat = document.getElementById('chart-top-cat').getContext('2d');
+            // Generate multiple gradients for bars
             const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#64748b'];
             const gradients = colors.map(c => {
                 const grad = ctxTopCat.createLinearGradient(0, 0, 0, 300);
-                grad.addColorStop(0, c); 
-                grad.addColorStop(1, c + '1A'); 
+                grad.addColorStop(0, c); // Start
+                grad.addColorStop(1, c + '1A'); // End with very low opacity (hex alpha 1A ~ 10%)
                 return grad;
             });
 
@@ -1209,8 +1155,8 @@
                 }
             });
 
-            // Chart A: Timeline Detail (Yellow Line)
-            const timelineExpenses = rangeData.filter(t => t.type === 'despesa').sort((a,b) => new Date(a.date) - new Date(b.date));
+            // Chart A (Renamed): Timeline Detail (Yellow Line) - ID: chart-timeline
+            const timelineExpenses = monthData.filter(t => t.type === 'despesa').sort((a,b) => new Date(a.date) - new Date(b.date));
             const labelsLine = timelineExpenses.map(t => `${t.category} (${t.date.split('-')[2]}/${t.date.split('-')[1]})`);
             const dataLine = timelineExpenses.map(t => t.value);
             const totalLine = dataLine.reduce((a,b) => a+b, 0);
@@ -1225,7 +1171,7 @@
 
             chartInstances.timeline = new Chart(ctxTimeline, {
                 type: 'line',
-                plugins: [datalabelsPlugin], 
+                plugins: [datalabelsPlugin], // Activate custom plugin
                 data: {
                     labels: labelsLine,
                     datasets: [{
@@ -1234,7 +1180,7 @@
                         borderColor: '#facc15', // Yellow-400
                         backgroundColor: timelineGradient,
                         borderWidth: 2,
-                        tension: 0.4, 
+                        tension: 0.4, // Smooth curve
                         pointRadius: 4,
                         pointHoverRadius: 6,
                         pointBackgroundColor: '#facc15',
@@ -1277,9 +1223,9 @@
                 }
             });
 
-            // Chart B: Gastos por Banco (Período)
+            // Chart B: Gastos por Banco (Mês) - ID: chart-bank
             const bankMap = {};
-            rangeData.filter(t => t.type === 'despesa').forEach(t => {
+            monthData.filter(t => t.type === 'despesa').forEach(t => {
                 const b = t.bank || 'Carteira';
                 bankMap[b] = (bankMap[b] || 0) + t.value;
             });
@@ -1316,11 +1262,11 @@
                 }
             });
 
-            // Chart E: Ranking de Receitas (Período)
+            // Chart E: Ranking de Receitas (Mês) - ID: chart-type
             document.getElementById('title-chart-type').textContent = "Fontes de Receita";
             
             const recMap = {};
-            rangeData.filter(t => t.type === 'receita').forEach(t => {
+            monthData.filter(t => t.type === 'receita').forEach(t => {
                 const o = t.origin || t.title || 'Diversos';
                 recMap[o] = (recMap[o] || 0) + t.value;
             });
@@ -1423,8 +1369,7 @@
 
         document.getElementById('grid-search').addEventListener('input', updateInterface);
         document.getElementById('filter-month').addEventListener('change', updateInterface);
-        document.getElementById('dash-filter-month-1').addEventListener('change', (e) => window.updateDashboardAnalytics());
-        document.getElementById('dash-filter-month-2').addEventListener('change', (e) => window.updateDashboardAnalytics());
+        document.getElementById('dash-filter-month').addEventListener('change', (e) => updateInterface());
 
         window.clearAllData = async () => {
             if(!confirm("CUIDADO: Isso apagará tudo!")) return;
