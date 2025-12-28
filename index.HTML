@@ -391,7 +391,9 @@
                             <span id="dash-eco-perc" class="text-lg font-bold text-white">0%</span>
                         </div>
                     </div>
-                    <p id="label-inv-goal" class="mt-2 text-xs text-slate-400 uppercase font-bold text-center">Meta de Investimento</p>
+                    <div id="label-inv-goal" class="w-full text-center">
+                        <p class="mt-2 text-xs text-slate-400 uppercase font-bold text-center">Meta de Investimento</p>
+                    </div>
                 </div>
             </div>
 
@@ -816,80 +818,96 @@
             }
 
             const currentYear = selectedMonth.split('-')[0];
-            const fmt = new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'});
+            const fmtMoney = (v) => new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(v);
 
             // Data Subsets
             const monthData = transactions.filter(t => t.date.startsWith(selectedMonth));
             const yearData = transactions.filter(t => t.date.startsWith(currentYear));
 
             // KPIs Calculation
-            // Receita Total
             const totalRec = monthData.filter(t => t.type === 'receita').reduce((sum, t) => sum + t.value, 0);
-            
-            // Despesa Total (All outflows are now considered expenses for balance calculation)
             const valExp = monthData.filter(t => t.type === 'despesa').reduce((sum, t) => sum + t.value, 0);
-            
-            // Saldo / Investimento (Revenue - Expense)
             const monthBalance = totalRec - valExp;
-            
-            // Investment is now the Balance (Surplus)
             const valInvest = monthBalance; 
 
             // Update DOM KPIs
-            document.getElementById('dash-rec').textContent = fmt.format(totalRec);
-            document.getElementById('dash-desp').textContent = fmt.format(valExp);
-            document.getElementById('dash-saldo').textContent = fmt.format(monthBalance);
+            document.getElementById('dash-rec').textContent = fmtMoney(totalRec);
+            document.getElementById('dash-desp').textContent = fmtMoney(valExp);
+            document.getElementById('dash-saldo').textContent = fmtMoney(monthBalance);
 
-            // Gauge C: Meta de Gastos (Simulação visual no card de Despesas)
-            const cardDespesa = document.getElementById('card-despesa-kpi');
+            // --- 1. Despesas Card Details ---
             const kpiStatus = document.getElementById('kpi-despesa-status');
-            
-            // Use User Setting for Expense Goal (default 80%)
-            const expenseLimit = (userSettings.goalExpense || 80) / 100;
+            const expenseLimitPercent = userSettings.goalExpense || 80;
+            const expenseTargetValue = totalRec > 0 ? totalRec * (expenseLimitPercent / 100) : 0;
+            const expenseCurrentPercent = totalRec > 0 ? (valExp / totalRec) * 100 : 0;
 
-            if(totalRec > 0) {
-                const ratio = valExp / totalRec;
-                if(ratio > 1) {
-                    cardDespesa.classList.add('border', 'border-brand-despesa');
-                    kpiStatus.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Estouro de Orçamento!</span>`;
-                } else if(ratio > expenseLimit) {
-                    cardDespesa.classList.add('border', 'border-brand-warning');
-                    kpiStatus.innerHTML = `<i class="fa-solid fa-circle-exclamation text-brand-warning"></i> <span class="text-brand-warning">Atenção (${userSettings.goalExpense}%+)</span>`;
-                } else {
-                    cardDespesa.classList.remove('border', 'border-brand-despesa', 'border-brand-warning');
-                    kpiStatus.innerHTML = `<i class="fa-solid fa-check text-brand-receita"></i> <span class="text-brand-receita">Dentro da meta</span>`;
-                }
-            } else {
-                kpiStatus.innerHTML = `<i class="fa-solid fa-minus"></i> <span>Sem Receita</span>`;
+            let expenseColorClass = 'text-brand-receita'; // Green default
+            let iconClass = 'fa-check';
+
+            if (valExp > expenseTargetValue) {
+                expenseColorClass = 'text-brand-despesa'; // Red
+                iconClass = 'fa-triangle-exclamation';
+            } else if (valExp > expenseTargetValue * 0.9) {
+                expenseColorClass = 'text-brand-warning'; // Yellow
+                iconClass = 'fa-circle-exclamation';
             }
 
-            // Gauge F: Meta de Investimentos (Usando o SVG Circle)
-            // Savings Rate now uses the calculated Balance (valInvest)
-            const savingsRate = totalRec > 0 ? (valInvest / totalRec) * 100 : 0;
-            // Use User Setting for Savings Goal (default 20%)
-            const savingsGoal = userSettings.goalSavings || 20; 
-            
-            // Normaliza para o círculo (0 a 100%)
-            // Se atingiu 20%, o círculo deve estar cheio? Ou mostrar a taxa real? Vamos mostrar a taxa real.
-            // Círculo full = 100%. Texto mostra %.
-            
-            document.getElementById('dash-eco-perc').textContent = `${savingsRate.toFixed(1)}%`;
-            document.getElementById('label-inv-goal').textContent = `Investido (Meta: ${savingsGoal}%)`;
+            // HTML injection for Despesas
+            kpiStatus.innerHTML = `
+                <div class="flex flex-col w-full mt-2">
+                    <div class="flex justify-between items-center text-[10px] uppercase tracking-wider text-slate-400 mb-1">
+                        <span>Meta (${expenseLimitPercent}%)</span>
+                        <span>${fmtMoney(expenseTargetValue)}</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-1.5 mb-1">
+                        <div class="bg-current h-1.5 rounded-full ${expenseColorClass}" style="width: ${Math.min(expenseCurrentPercent, 100)}%"></div>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px]">
+                        <span class="${expenseColorClass} font-bold"><i class="fa-solid ${iconClass}"></i> ${expenseCurrentPercent.toFixed(1)}%</span>
+                        <span class="text-slate-500">Atingido</span>
+                    </div>
+                </div>
+            `;
 
+            // Remove card border visual cue as now we have detail inside
+            document.getElementById('card-despesa-kpi').className = "glass p-6 rounded-3xl relative overflow-hidden border-transparent transition-all";
+
+
+            // --- 2. Investimentos (Circle) Card Details ---
+            const savingsGoalPercent = userSettings.goalSavings || 20;
+            const savingsTargetValue = totalRec > 0 ? totalRec * (savingsGoalPercent / 100) : 0;
+            const savingsActualPercent = totalRec > 0 ? (valInvest / totalRec) * 100 : 0;
+            
+            // Circle Visuals
             const circle = document.getElementById('circle-progress');
             const radius = circle.r.baseVal.value;
             const circumference = radius * 2 * Math.PI;
-            
-            // Limita visualização a 100%
-            const visualPercent = Math.min(savingsRate, 100);
+            const visualPercent = Math.max(0, Math.min(savingsActualPercent, 100)); // Clamp 0-100 for drawing
             const offset = circumference - (visualPercent / 100) * circumference;
             
             circle.style.strokeDashoffset = offset;
             
-            // Cor baseada na meta
-            if(savingsRate >= savingsGoal) circle.style.stroke = '#10b981'; // Verde (Atingiu)
-            else if(savingsRate >= savingsGoal / 2) circle.style.stroke = '#3b82f6'; // Azul (No caminho)
-            else circle.style.stroke = '#f59e0b'; // Amarelo (Baixo)
+            // Color based on target
+            if(savingsActualPercent >= savingsGoalPercent) circle.style.stroke = '#10b981'; // Green
+            else if(savingsActualPercent >= savingsGoalPercent / 2) circle.style.stroke = '#3b82f6'; // Blue
+            else circle.style.stroke = '#f59e0b'; // Yellow (Low)
+
+            document.getElementById('dash-eco-perc').textContent = `${savingsActualPercent.toFixed(1)}%`;
+
+            // HTML Injection for Investment Label
+            const invLabel = document.getElementById('label-inv-goal');
+            invLabel.innerHTML = `
+                <div class="flex flex-col items-center mt-3 w-full">
+                    <div class="flex justify-between w-full text-[10px] text-slate-400 uppercase font-bold border-b border-slate-700/50 pb-1 mb-1">
+                        <span>Meta (${savingsGoalPercent}%)</span>
+                        <span>${fmtMoney(savingsTargetValue)}</span>
+                    </div>
+                    <div class="flex justify-between w-full text-[10px] font-bold">
+                        <span class="text-slate-500">Realizado</span>
+                        <span class="${savingsActualPercent >= savingsGoalPercent ? 'text-brand-receita' : 'text-brand-accent'}">${fmtMoney(valInvest)}</span>
+                    </div>
+                </div>
+            `;
 
             // --- CHARTS UPDATE ---
             updateCharts(yearData, monthData, currentYear);
