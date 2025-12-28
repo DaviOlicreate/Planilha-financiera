@@ -447,32 +447,32 @@
         </div>
     </div>
 
-    <!-- 2. Configurações de Metas -->
+    <!-- 2. Configurações de Metas (Percentage) -->
     <div id="settings-modal" class="fixed inset-0 z-[60] hidden">
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeModal('settings-modal')"></div>
         <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md glass-panel bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-600 p-0">
             <div class="bg-slate-50 dark:bg-slate-800 px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                <h3 class="font-serif text-xl font-bold text-slate-800 dark:text-white">Definir Metas Mensais</h3>
+                <h3 class="font-serif text-xl font-bold text-slate-800 dark:text-white">Metas (% da Receita)</h3>
                 <button onclick="closeModal('settings-modal')" class="text-slate-400 hover:text-rose-500"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             
             <form id="settings-form" class="p-6 space-y-6">
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Limite de Gastos (Mensal)</label>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Limite de Gastos (%)</label>
                     <div class="relative">
-                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">R$</span>
-                        <input type="number" id="meta-gasto" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg pl-10 pr-4 py-3 text-slate-800 dark:text-white font-bold focus:border-amber-400 transition-colors">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+                        <input type="number" id="meta-gasto" required min="0" max="100" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg pl-4 pr-10 py-3 text-slate-800 dark:text-white font-bold focus:border-amber-400 transition-colors" placeholder="50">
                     </div>
-                    <p class="text-[10px] text-slate-400 mt-1">Valor máximo para despesas no mês.</p>
+                    <p class="text-[10px] text-slate-400 mt-1">Porcentagem da Receita Bruta destinada a despesas.</p>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Meta de Investimento (Mensal)</label>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Meta de Investimento (%)</label>
                     <div class="relative">
-                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">R$</span>
-                        <input type="number" id="meta-invest" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg pl-10 pr-4 py-3 text-slate-800 dark:text-white font-bold focus:border-indigo-500 transition-colors">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+                        <input type="number" id="meta-invest" required min="0" max="100" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg pl-4 pr-10 py-3 text-slate-800 dark:text-white font-bold focus:border-indigo-500 transition-colors" placeholder="20">
                     </div>
-                    <p class="text-[10px] text-slate-400 mt-1">Quanto você deseja guardar/investir por mês.</p>
+                    <p class="text-[10px] text-slate-400 mt-1">Porcentagem da Receita Bruta destinada a investimentos.</p>
                 </div>
 
                 <button type="submit" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all">
@@ -509,7 +509,7 @@
         // State
         let currentUser = null;
         let allTransactions = [];
-        let userGoals = { gasto: 5000, investimento: 1000 }; // Default
+        let userGoals = { gasto: 50, investimento: 20 }; // Default Percentages: 50% expenses, 20% invest
         let charts = {}; 
 
         // --- AUTH ---
@@ -608,17 +608,12 @@
                 const { ctx, config, data, chartArea: { top, bottom, left, right, width, height } } = chart;
                 ctx.save();
                 
-                // Value & Total
+                // Get target from dataset meta
+                const maxVal = data.datasets[0].maxVal || 1;
                 const needleValue = data.datasets[0].needleValue || 0;
-                // Assuming the gauge covers a certain range. For minimalist scale we treat dataset total as the "Max" capacity
-                const dataTotal = data.datasets[0].data.reduce((a, b) => a + b, 0);
                 
                 // Map value to angle
-                // Start: -90deg (270), End: 90deg (360+90=450?) or ChartJS logic:
-                // Circumference 180, Rotation 270.
-                // 0% = 270deg (Left), 100% = 90deg (Right)
-                let percentage = needleValue / userGoals.gasto; // Default base
-                if(chart.canvas.id === 'gaugeEconomia') percentage = needleValue / userGoals.investimento;
+                let percentage = needleValue / maxVal; 
                 
                 if(percentage > 1) percentage = 1; 
                 if(percentage < 0) percentage = 0;
@@ -698,6 +693,12 @@
                 }
             });
 
+            // Calculate Dynamic Goals
+            // Fallback to 1 if 0 to avoid division by zero
+            const revenueBase = totalReceitaMonth > 0 ? totalReceitaMonth : 1; 
+            const targetGasto = totalReceitaMonth * (userGoals.gasto / 100);
+            const targetInvest = totalReceitaMonth * (userGoals.investimento / 100);
+
             // 1. Line Category
             const allDays = [...new Set(sortedData.map(t => t.date))].sort();
             const datasetsCat = Object.keys(groupedByDateCat).map((cat, i) => {
@@ -756,64 +757,82 @@
                 }
             });
 
-            // 3. Gauge Despesas (Minimalist with Needle)
-            // Zones: 0-75% (Green), 75-90% (Yellow), 90-100% (Red)
-            // Represented as relative segments of the doughnut
-            const percGasto = Math.min((totalDespesaMonth / userGoals.gasto) * 100, 100);
+            // 3. Gauge Despesas (Dynamic Goal)
+            // Goal is targetGasto. Zones relative to 100% of target? 
+            // Let's visualize risk: 
+            // 0-75% (Green), 75-100% (Yellow), >100% (Red)
+            const gaugeMaxGasto = targetGasto > 0 ? targetGasto : 1000; // fallback visual max
+            const percGastoVal = Math.min((totalDespesaMonth / gaugeMaxGasto) * 100, 100);
             
             charts.gaugeDespesas = new Chart(document.getElementById('gaugeDespesas'), {
                 type: 'doughnut',
                 data: {
                     datasets: [{
-                        data: [75, 15, 10], // Fixed minimalist zones
+                        data: [75, 25, 0], // Visual zones
                         backgroundColor: ['#10b981', '#fbbf24', '#f43f5e'],
                         borderWidth: 0,
                         circumference: 180,
                         rotation: 270,
-                        needleValue: totalDespesaMonth
+                        needleValue: totalDespesaMonth,
+                        maxVal: gaugeMaxGasto
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false }, tooltip: { enabled: false } },
-                    cutout: '85%' // Minimalist thin line
+                    cutout: '85%' 
                 },
                 plugins: [gaugeNeedle]
             });
-            document.getElementById('gauge-despesa-val').innerHTML = `<span class="${percGasto>90?'text-rose-500':''}">R$ ${Math.round(totalDespesaMonth)}</span> <span class="text-sm font-normal text-slate-400">/ ${userGoals.gasto}</span>`;
-            document.getElementById('gauge-despesa-status').textContent = percGasto > 100 ? "Meta Estourada!" : (percGasto > 80 ? "Cuidado" : "No Controle");
-            document.getElementById('gauge-despesa-status').className = `text-xs font-bold uppercase mt-1 ${percGasto > 90 ? 'text-rose-500' : 'text-emerald-500'}`;
+            
+            // Text Display
+            const statusGasto = totalDespesaMonth > targetGasto ? 'Estourado' : 'Dentro da Meta';
+            const statusColorGasto = totalDespesaMonth > targetGasto ? 'text-rose-500' : 'text-emerald-500';
+            const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+            
+            document.getElementById('gauge-despesa-val').innerHTML = `
+                <span class="${totalDespesaMonth > targetGasto ? 'text-rose-500' : 'text-slate-200'}">${fmt.format(totalDespesaMonth)}</span> 
+                <span class="text-sm font-normal text-slate-400">/ ${fmt.format(targetGasto)}</span>`;
+            document.getElementById('gauge-despesa-status').textContent = `${statusGasto} (${userGoals.gasto}%)`;
+            document.getElementById('gauge-despesa-status').className = `text-xs font-bold uppercase mt-1 ${statusColorGasto}`;
 
 
-            // 4. Gauge Economia (Minimalist with Needle)
-            // Zones: 0-30% (Red), 30-60% (Yellow), 60-100% (Green) - Inverted logic because more savings is better
+            // 4. Gauge Economia (Dynamic Goal)
+            // Target is targetInvest
             const saldoLiquido = Math.max(0, totalReceitaMonth - totalDespesaMonth);
-            const percEco = Math.min((saldoLiquido / userGoals.investimento) * 100, 100);
+            const gaugeMaxInvest = targetInvest > 0 ? targetInvest : 1000;
             
             charts.gaugeEconomia = new Chart(document.getElementById('gaugeEconomia'), {
                 type: 'doughnut',
                 data: {
                     datasets: [{
-                        data: [30, 30, 40], // Low savings, mid, high
+                        data: [30, 30, 40], // Low, Mid, High savings zones
                         backgroundColor: ['#f43f5e', '#fbbf24', '#10b981'],
                         borderWidth: 0,
                         circumference: 180,
                         rotation: 270,
-                        needleValue: saldoLiquido
+                        needleValue: saldoLiquido,
+                        maxVal: gaugeMaxInvest
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false }, tooltip: { enabled: false } },
-                    cutout: '85%' // Minimalist thin line
+                    cutout: '85%'
                 },
                 plugins: [gaugeNeedle]
             });
-            document.getElementById('gauge-economia-val').innerHTML = `<span class="text-indigo-500">R$ ${Math.round(saldoLiquido)}</span> <span class="text-sm font-normal text-slate-400">/ ${userGoals.investimento}</span>`;
-            document.getElementById('gauge-economia-status').textContent = percEco >= 100 ? "Meta Atingida!" : "Em progresso";
-            document.getElementById('gauge-economia-status').className = `text-xs font-bold uppercase mt-1 ${percEco >= 100 ? 'text-emerald-500' : 'text-slate-500'}`;
+            
+            const statusInvest = saldoLiquido >= targetInvest ? 'Meta Atingida' : 'Em progresso';
+            const statusColorInvest = saldoLiquido >= targetInvest ? 'text-emerald-500' : 'text-amber-400';
+            
+            document.getElementById('gauge-economia-val').innerHTML = `
+                <span class="text-indigo-500">${fmt.format(saldoLiquido)}</span> 
+                <span class="text-sm font-normal text-slate-400">/ ${fmt.format(targetInvest)}</span>`;
+            document.getElementById('gauge-economia-status').textContent = `${statusInvest} (${userGoals.investimento}%)`;
+            document.getElementById('gauge-economia-status').className = `text-xs font-bold uppercase mt-1 ${statusColorInvest}`;
 
             // 5. Bar Annual (Month vs Month) - Using Global Data for this one usually, but here filtering by context
             // To make it useful, we usually show the whole year. For this demo, I'll use the groupedByMonth from filteredData
