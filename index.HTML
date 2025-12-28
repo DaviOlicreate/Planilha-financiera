@@ -98,6 +98,12 @@
         input[type="month"]::-webkit-calendar-picker-indicator {
             filter: invert(1);
             cursor: pointer;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
         }
     </style>
 </head>
@@ -266,7 +272,7 @@
                     </div>
                     <div class="flex gap-4 items-center">
                         <div class="relative">
-                            <input type="month" id="filter-month" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg px-4 py-2 focus:ring-1 focus:ring-brand-accent focus:border-brand-accent outline-none transition-all cursor-pointer">
+                            <input type="month" id="filter-month" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg px-4 py-2 focus:ring-1 focus:ring-brand-accent focus:border-brand-accent outline-none transition-all cursor-pointer relative" onclick="this.showPicker()">
                         </div>
                         <div class="relative">
                             <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
@@ -342,9 +348,10 @@
                     <i class="fa-solid fa-arrow-left"></i>
                 </button>
                 <div class="w-px h-6 bg-slate-700 my-auto mx-2"></div>
-                <div class="flex items-center gap-2 px-3">
-                    <span class="text-xs font-bold text-slate-400 uppercase">Mês:</span>
-                    <input type="month" id="dash-filter-month" class="bg-transparent text-white font-bold text-sm outline-none border-none w-32 cursor-pointer">
+                <div class="flex items-center gap-2 px-3 relative">
+                    <span class="text-xs font-bold text-slate-400 uppercase pointer-events-none z-10">Mês:</span>
+                    <input type="month" id="dash-filter-month" class="bg-transparent text-white font-bold text-sm outline-none border-none w-40 cursor-pointer text-right pr-2 relative z-20" onclick="this.showPicker()">
+                    <!-- Clickable area expansion is handled by onclick="showPicker()" -->
                 </div>
             </div>
         </div>
@@ -1335,236 +1342,6 @@
                 tr.innerHTML = html;
                 tbody.appendChild(tr);
             });
-        }
-
-        window.deleteItem = async (id) => {
-            if(confirm('Tem certeza?')) await deleteDoc(doc(db, "transacoes_financeiras", id));
-        }
-
-        window.editItem = (id) => {
-            const item = transactions.find(t => t.id === id);
-            if(!item) return;
-
-            openModal(item.type);
-            
-            document.getElementById('form-id').value = item.id;
-            document.getElementById('form-desc').value = item.title;
-            
-            const valStr = (item.value * 100).toString(); 
-            const inputVal = document.getElementById('form-val');
-            inputVal.value = valStr; 
-            formatCurrencyInput(inputVal);
-
-            document.getElementById('form-date').value = item.date;
-            document.getElementById('form-bank').value = item.bank;
-
-            if(item.type === 'despesa') {
-                document.getElementById('form-cat').value = item.category;
-                document.getElementById('form-def').value = item.definition;
-            }
-
-            document.getElementById('modal-title').textContent = `Editar ${item.type === 'receita' ? 'Receita' : 'Despesa'}`;
-            document.getElementById('btn-save').textContent = 'Atualizar Registro';
-        }
-
-        document.getElementById('grid-search').addEventListener('input', updateInterface);
-        document.getElementById('filter-month').addEventListener('change', updateInterface);
-        document.getElementById('dash-filter-month').addEventListener('change', (e) => updateInterface());
-
-        window.clearAllData = async () => {
-            if(!confirm("CUIDADO: Isso apagará tudo!")) return;
-            const batch = writeBatch(db);
-            transactions.forEach(t => batch.delete(doc(db, "transacoes_financeiras", t.id)));
-            await batch.commit();
-        }
-
-        // --- NAVIGATION & MODALS ---
-        window.switchView = (viewName) => {
-            ['home', 'datagrid'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
-            document.getElementById(`view-${viewName}`).classList.remove('hidden');
-            
-            document.getElementById('nav-home').classList.remove('text-brand-accent', 'bg-slate-800/50');
-            document.getElementById('nav-datagrid').classList.remove('text-brand-accent', 'bg-slate-800/50');
-            
-            document.getElementById(`nav-${viewName}`).classList.add('text-brand-accent', 'bg-slate-800/50');
-            document.getElementById(`nav-${viewName}`).classList.remove('text-slate-400');
-        }
-
-        window.switchTableTab = (tab) => {
-            if(tab === 'receitas') {
-                document.getElementById('tab-content-receitas').classList.remove('hidden');
-                document.getElementById('tab-content-despesas').classList.add('hidden');
-                document.getElementById('tab-btn-receitas').classList.add('border-brand-receita', 'text-brand-receita');
-                document.getElementById('tab-btn-receitas').classList.remove('border-transparent', 'text-slate-500');
-                document.getElementById('tab-btn-despesas').classList.add('border-transparent', 'text-slate-500');
-                document.getElementById('tab-btn-despesas').classList.remove('border-brand-despesa', 'text-brand-despesa');
-            } else {
-                document.getElementById('tab-content-receitas').classList.add('hidden');
-                document.getElementById('tab-content-despesas').classList.remove('hidden');
-                document.getElementById('tab-btn-despesas').classList.add('border-brand-despesa', 'text-brand-despesa'); 
-                document.getElementById('tab-btn-despesas').classList.remove('border-transparent', 'text-slate-500');
-                document.getElementById('tab-btn-receitas').classList.add('border-transparent', 'text-slate-500');
-                document.getElementById('tab-btn-receitas').classList.remove('border-brand-receita', 'text-brand-receita');
-            }
-        }
-
-        window.openDashboardFull = () => {
-            document.getElementById('dashboard-full').classList.add('active');
-            updateInterface(); 
-        }
-        window.closeDashboardFull = () => document.getElementById('dashboard-full').classList.remove('active');
-
-        window.openModal = (type) => {
-            const modal = document.getElementById('modal');
-            if(modal) {
-                modal.classList.remove('hidden');
-                document.getElementById('form-id').value = ''; 
-                document.getElementById('form-type').value = type;
-                document.getElementById('modal-title').textContent = type === 'receita' ? 'Nova Receita' : 'Nova Despesa';
-                document.getElementById('modal-title').className = `font-display text-xl font-bold ${type === 'receita' ? 'text-brand-receita' : 'text-brand-despesa'}`;
-                
-                const btnSave = document.getElementById('btn-save');
-                btnSave.textContent = 'Salvar Registro';
-                btnSave.className = `w-full font-bold py-4 rounded-xl shadow-lg transition-all mt-4 text-white ${type === 'receita' ? 'bg-brand-receita hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-brand-despesa hover:bg-rose-600 shadow-rose-500/20'}`;
-                
-                if(type === 'receita') {
-                    document.getElementById('field-cat-container').classList.add('hidden');
-                    document.getElementById('field-def-container').classList.add('hidden');
-                } else {
-                    document.getElementById('field-cat-container').classList.remove('hidden');
-                    document.getElementById('field-def-container').classList.remove('hidden');
-                }
-                
-                if(!document.getElementById('form-id').value) {
-                    document.getElementById('form-transaction').reset();
-                    document.getElementById('form-type').value = type;
-                    document.getElementById('form-date').valueAsDate = new Date();
-                }
-            }
-        }
-        window.closeModal = (modalId) => {
-            document.getElementById(modalId).classList.add('hidden');
-        }
-
-        document.getElementById('form-transaction').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const type = document.getElementById('form-type').value;
-            const id = document.getElementById('form-id').value;
-
-            const valStr = document.getElementById('form-val').value;
-            const value = parseFloat(valStr.replace(/\./g, '').replace(',', '.'));
-
-            const data = {
-                uid: currentUser.uid,
-                type: type,
-                title: document.getElementById('form-desc').value,
-                value: value,
-                date: document.getElementById('form-date').value,
-                bank: document.getElementById('form-bank').value,
-            };
-
-            if(!id) data.createdAt = Timestamp.now();
-
-            if(type === 'despesa') {
-                data.category = document.getElementById('form-cat').value;
-                data.definition = document.getElementById('form-def').value;
-            } else {
-                data.origin = data.title; 
-            }
-
-            if(id) await updateDoc(doc(db, "transacoes_financeiras", id), data);
-            else await addDoc(collection(db, "transacoes_financeiras"), data);
-            
-            closeModal('modal');
-            document.getElementById('form-transaction').reset();
-        });
-
-        // --- IMPORT EXCEL ---
-        document.getElementById('file-upload').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if(!file) return;
-            const status = document.getElementById('import-status');
-            status.textContent = "Processando...";
-            status.className = "text-xs text-brand-accent mt-1 animate-pulse";
-
-            const reader = new FileReader();
-            reader.onload = async (evt) => {
-                const workbook = XLSX.read(evt.target.result, {type: 'array'});
-                const batch = writeBatch(db);
-                let count = 0;
-
-                workbook.SheetNames.forEach(sheetName => {
-                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-                    rows.forEach(row => {
-                        const keys = Object.keys(row).reduce((acc, k) => { 
-                            const cleanKey = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                            acc[cleanKey] = row[k]; 
-                            return acc; 
-                        }, {});
-
-                        let type = 'despesa';
-                        if(keys['origem'] || sheetName.toLowerCase().includes('receita')) type = 'receita';
-
-                        const val = parseValue(keys['valor'] || keys['quantia'] || keys['total'] || keys['saida'] || keys['entrada']);
-                        const date = parseDate(keys['data'] || keys['dia']);
-                        
-                        if(val > 0 && date) {
-                            const docData = {
-                                uid: currentUser.uid,
-                                type: type,
-                                value: val,
-                                date: date,
-                                bank: keys['banco'] || keys['instituicao bancaria'] || keys['conta'] || 'Não informado',
-                                title: keys['descricao'] || keys['origem'] || 'Sem título',
-                                createdAt: Timestamp.now()
-                            };
-
-                            if(type === 'despesa') {
-                                docData.category = keys['categoria'] || keys['despesa'] || 'Outros';
-                                docData.definition = keys['definicao'] || keys['tipo'] || 'Outros';
-                            } else {
-                                docData.origin = keys['origem'] || keys['descricao'];
-                            }
-
-                            batch.set(doc(collection(db, "transacoes_financeiras")), docData);
-                            count++;
-                        }
-                    });
-                });
-
-                if(count > 0) await batch.commit();
-                status.textContent = `${count} itens importados!`;
-                status.className = "text-xs text-brand-receita mt-1";
-                setTimeout(() => status.textContent = "Clique para carregar planilha", 3000);
-            };
-            reader.readAsArrayBuffer(file);
-        });
-
-        function parseValue(v) {
-            if (typeof v === 'number') return v;
-            if (!v) return 0;
-            let str = v.toString().trim();
-            if (str.startsWith('(') && str.endsWith(')')) str = '-' + str.slice(1, -1);
-            str = str.replace(/[R$\s\.]/g, '').replace(',', '.');
-            const parsed = parseFloat(str);
-            return isNaN(parsed) ? 0 : parsed;
-        }
-
-        function parseDate(d) {
-            if(!d) return new Date().toISOString().split('T')[0];
-            if(typeof d === 'number') {
-                const date = new Date(Math.round((d - 25569)*86400*1000));
-                return date.toISOString().split('T')[0];
-            }
-            if(d.includes('/')) {
-                const p = d.split('/');
-                if(p.length === 3) return `${p[2]}-${p[1]}-${p[0]}`;
-            }
-            return d;
-        }
-        function formatDate(d) {
-            const p = d.split('-');
-            return `${p[2]}/${p[1]}/${p[0]}`;
         }
         
         const now = new Date();
