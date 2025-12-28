@@ -542,8 +542,8 @@
                     const firstSheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheetName];
                     
-                    // Converte para JSON
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    // Converte para JSON com defval para evitar erros em linhas vazias
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
                     if (jsonData.length === 0) throw new Error("Planilha vazia.");
 
@@ -553,30 +553,38 @@
                     const batch = writeBatch(db);
                     let count = 0;
                     
-                    // Limite do Firestore Batch é 500. Vamos fazer simples para pequenos arquivos ou chunks
-                    // Para arquivos grandes, seria ideal quebrar em vários batches.
-                    // Aqui assumimos < 500 linhas por vez para simplificar.
+                    // Mostra as chaves da primeira linha para ajudar no diagnóstico
+                    console.log("Colunas encontradas:", Object.keys(jsonData[0]));
                     
                     const collectionRef = collection(db, "transacoes_financeiras");
 
                     jsonData.forEach((row) => {
-                        // Mapeamento Inteligente de Colunas
-                        // Tenta encontrar colunas comuns independentemente de maiúsculas/minúsculas
+                        // Mapeamento Expandido de Colunas
                         const keys = Object.keys(row);
-                        const getKey = (term) => keys.find(k => k.toLowerCase().includes(term));
+                        const lowerKeys = keys.map(k => k.toLowerCase().trim());
+                        
+                        // Função auxiliar para encontrar a chave correta
+                        const findKey = (terms) => {
+                            const foundIndex = lowerKeys.findIndex(lk => terms.some(t => lk.includes(t)));
+                            return foundIndex >= 0 ? keys[foundIndex] : null;
+                        };
 
-                        // Ajuste estes termos conforme sua planilha!
-                        const dateKey = getKey('data') || getKey('date'); 
-                        const titleKey = getKey('descri') || getKey('titulo') || getKey('nome');
-                        const valueKey = getKey('valor') || getKey('amount') || getKey('preço');
-                        const catKey = getKey('categ');
-                        const typeKey = getKey('tipo'); // Receita/Despesa
+                        // Lista expandida de termos comuns em exportações bancárias
+                        const dateKey = findKey(['data', 'date', 'dt.', 'dia', 'lancamento']);
+                        const titleKey = findKey(['descri', 'título', 'titulo', 'nome', 'histórico', 'historico', 'loja', 'estabelecimento', 'evento', 'lançamento']);
+                        const valueKey = findKey(['valor', 'amount', 'preço', 'preco', 'total', 'quantia', 'saldo']); // Saldo as fallback
+                        const catKey = findKey(['categ', 'classi', 'tag', 'grupo']);
+                        const typeKey = findKey(['tipo', 'type', 'oper', 'd/c', 'movimento']);
 
-                        if (titleKey && valueKey) {
-                            let val = row[valueKey];
-                            if(typeof val === 'string') val = parseFloat(val.replace('R$','').replace('.','').replace(',','.').trim()); // Tenta limpar string R$
+                        // Precisamos pelo menos do Valor para importar
+                        if (valueKey) {
+                            let valStr = String(row[valueKey]);
+                            // Limpeza de moeda (R$ 1.000,00 -> 1000.00)
+                            let val = parseFloat(valStr.replace('R$','').replace(/\./g,'').replace(',','.').trim());
+                            
+                            if (isNaN(val)) val = 0;
 
-                            let dateVal = row[dateKey];
+                            let dateVal = dateKey ? row[dateKey] : null;
                             let finalDate = new Date().toISOString().split('T')[0]; // Hoje como fallback
 
                             // Tratamento de Data do Excel (Número serial)
@@ -589,20 +597,30 @@
                                 if(parts.length === 3) finalDate = `${parts[2]}-${parts[1]}-${parts[0]}`; 
                             }
 
-                            // Tratamento de Tipo
-                            let typeVal = row[typeKey] ? String(row[typeKey]).toLowerCase() : 'despesa';
-                            if (typeVal.includes('rec') || typeVal.includes('entrada') || val > 0 && !typeKey) typeVal = 'receita';
-                            else typeVal = 'despesa';
+                            // Tratamento de Tipo (Receita/Despesa)
+                            let typeVal = 'despesa'; // Padrão seguro
                             
-                            // Se valor vier negativo na planilha mas for despesa, converte para positivo para o sistema
+                            if (typeKey) {
+                                const rawType = String(row[typeKey]).toLowerCase();
+                                if (rawType.includes('crédito') || rawType.includes('receita') || rawType.includes('entrada') || rawType.includes('c')) {
+                                    typeVal = 'receita';
+                                }
+                            } else {
+                                // Se não tem coluna tipo, tenta adivinhar pelo sinal do valor
+                                // Muitos bancos usam negativo (-) para despesa
+                                if (val > 0 && !valStr.includes('-')) typeVal = 'receita'; 
+                                if (val < 0) typeVal = 'despesa';
+                            }
+                            
+                            // Converte para positivo absoluto para o sistema
                             val = Math.abs(val);
 
                             const newDocRef = doc(collectionRef); // Gera ID auto
                             batch.set(newDocRef, {
-                                title: row[titleKey] || "Sem descrição",
+                                title: titleKey ? row[titleKey] : "Sem descrição",
                                 value: val || 0,
                                 date: finalDate,
-                                category: row[catKey] || "Importado",
+                                category: catKey ? row[catKey] : "Importado",
                                 type: typeVal,
                                 uid: currentUser.uid,
                                 createdAt: Timestamp.now()
@@ -617,7 +635,8 @@
                         importStatus.className = "text-[10px] text-center text-emerald-400 h-4";
                         setTimeout(() => { importStatus.textContent = ""; }, 5000);
                     } else {
-                        throw new Error("Nenhuma linha válida encontrada.");
+                        console.error("Nenhuma linha processada. Verifique os nomes das colunas.");
+                        throw new Error("Colunas não identificadas. Abra o console (F12) para ver os nomes encontrados.");
                     }
 
                 } catch (error) {
