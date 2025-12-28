@@ -806,15 +806,19 @@
                     const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
                     
                     rows.forEach(row => {
-                        // Normaliza chaves (remove espaços e lowercase)
-                        const keys = Object.keys(row).reduce((acc, k) => { acc[k.toLowerCase().trim()] = row[k]; return acc; }, {});
+                        // Normaliza chaves (remove espaços, lowercase e acentos)
+                        const keys = Object.keys(row).reduce((acc, k) => { 
+                            const cleanKey = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                            acc[cleanKey] = row[k]; 
+                            return acc; 
+                        }, {});
 
                         // Detecção Inteligente
                         let type = 'despesa';
                         if(keys['origem'] || sheetName.toLowerCase().includes('receita')) type = 'receita';
 
                         // Mapeamento
-                        const val = parseValue(keys['valor'] || keys['quantia'] || keys['total']);
+                        const val = parseValue(keys['valor'] || keys['quantia'] || keys['total'] || keys['saida'] || keys['entrada']);
                         const date = parseDate(keys['data'] || keys['dia']);
                         
                         if(val > 0 && date) {
@@ -823,18 +827,18 @@
                                 type: type,
                                 value: val,
                                 date: date,
-                                bank: keys['banco'] || keys['instituição bancária'] || keys['conta'] || 'Não informado',
-                                title: keys['descrição'] || keys['origem'] || 'Sem título',
+                                bank: keys['banco'] || keys['instituicao bancaria'] || keys['conta'] || 'Não informado',
+                                title: keys['descricao'] || keys['origem'] || 'Sem título',
                                 createdAt: Timestamp.now()
                             };
 
                             if(type === 'despesa') {
                                 docData.category = keys['categoria'] || keys['despesa'] || 'Outros';
-                                docData.definition = keys['definição'] || keys['tipo'] || 'Outros';
-                                docData.description = keys['descrição'] || '';
+                                docData.definition = keys['definicao'] || keys['tipo'] || 'Outros';
+                                docData.description = keys['descricao'] || '';
                                 docData.externalId = keys['id'] || ''; // Mod 1: Save ID
                             } else {
-                                docData.origin = keys['origem'] || keys['descrição'];
+                                docData.origin = keys['origem'] || keys['descricao'];
                             }
 
                             batch.set(doc(collection(db, "transacoes_financeiras")), docData);
@@ -853,10 +857,25 @@
 
         // Utils
         function parseValue(v) {
-            if(typeof v === 'number') return v;
-            if(!v) return 0;
-            return parseFloat(v.toString().replace('R$', '').replace(/\./g,'').replace(',','.').trim());
+            if (typeof v === 'number') return v;
+            if (!v) return 0;
+            
+            // Convert to string and clean
+            let str = v.toString().trim();
+            
+            // Handle Excel Accounting Parentheses for negative: "(1.000,00)" -> "-1.000,00"
+            if (str.startsWith('(') && str.endsWith(')')) {
+                str = '-' + str.slice(1, -1);
+            }
+            
+            // Remove R$, spaces, and dots (thousands separator in BR)
+            // Replace comma with dot
+            str = str.replace(/[R$\s\.]/g, '').replace(',', '.');
+            
+            const parsed = parseFloat(str);
+            return isNaN(parsed) ? 0 : parsed;
         }
+
         function parseDate(d) {
             if(!d) return new Date().toISOString().split('T')[0];
             if(typeof d === 'number') { // Excel serial date
