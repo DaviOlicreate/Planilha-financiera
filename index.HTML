@@ -49,6 +49,7 @@
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     
     <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -416,8 +417,8 @@
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Bar+Line Main -->
                 <div class="glass p-6 rounded-3xl lg:col-span-2">
-                    <h4 class="font-bold text-white mb-1">Fluxo Financeiro</h4>
-                    <p class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Histórico do Período</p>
+                    <h4 id="title-chart-main" class="font-bold text-white mb-1">Fluxo Financeiro</h4>
+                    <p id="subtitle-chart-main" class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Histórico</p>
                     <div class="h-[300px]">
                         <canvas id="chart-main"></canvas>
                     </div>
@@ -969,6 +970,8 @@
         }
 
         function updateCharts(rangeData, startMonth, endMonth) {
+            const isMerge = !document.getElementById('container-month-2').classList.contains('hidden');
+            
             const commonOptions = {
                 responsive: true, 
                 maintainAspectRatio: false,
@@ -990,10 +993,6 @@
                                     label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed.y);
                                 }
                                 return label;
-                            },
-                            label: function(context) {
-                                let val = context.raw;
-                                return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
                             }
                         }
                     }
@@ -1021,8 +1020,8 @@
                             if (!element.hidden) {
                                 const data = dataset.data[index];
                                 if(data !== null && data !== undefined && data !== 0) { 
-                                    const valueStr = new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(data);
-                                    ctx.font = 'bold 10px Inter';
+                                    const valueStr = new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits: 0}).format(data);
+                                    ctx.font = 'bold 9px Inter';
                                     ctx.fillStyle = '#cbd5e1'; 
                                     ctx.textAlign = 'center';
                                     ctx.textBaseline = 'bottom';
@@ -1035,16 +1034,36 @@
                 }
             };
 
-            // Chart D: Fluxo Financeiro (Barra/Linha) - Dinâmico pelo Range
+            // --- Chart D: Fluxo Financeiro (Barra/Linha) ---
+            // Lógica Atualizada: Se !Merge, pegar o ano inteiro. Se Merge, pegar o range.
+            let flowData = rangeData;
+            let flowStart = startMonth;
+            let flowEnd = endMonth;
+
+            if (!isMerge) {
+                // Se NÃO estiver mesclado, mostrar o ano inteiro (Jan-Dez) do ano selecionado
+                const year = startMonth.split('-')[0];
+                flowStart = `${year}-01`;
+                flowEnd = `${year}-12`;
+                
+                // Filtra da lista global de transações para pegar o ano todo
+                flowData = transactions.filter(t => t.date.startsWith(year));
+                
+                document.getElementById('title-chart-main').textContent = `Fluxo Anual (${year})`;
+                document.getElementById('subtitle-chart-main').textContent = "Janeiro a Dezembro";
+            } else {
+                document.getElementById('title-chart-main').textContent = "Fluxo do Período";
+                document.getElementById('subtitle-chart-main').textContent = "Intervalo Personalizado";
+            }
+
             // 1. Generate all month keys between start and end
             const monthKeys = [];
-            const [startY, startM] = startMonth.split('-').map(Number);
-            const [endY, endM] = endMonth.split('-').map(Number);
+            const [startY, startM] = flowStart.split('-').map(Number);
+            const [endY, endM] = flowEnd.split('-').map(Number);
             
             let currY = startY;
             let currM = startM;
             
-            // Safety break for loop
             let loops = 0;
             while ((currY < endY || (currY === endY && currM <= endM)) && loops < 60) {
                 monthKeys.push(`${currY}-${String(currM).padStart(2,'0')}`);
@@ -1056,11 +1075,11 @@
                 loops++;
             }
 
-            // 2. Aggregate Data per Key
+            // 2. Aggregate Data per Key for Flow Chart
             const monthsMap = {};
             monthKeys.forEach(k => monthsMap[k] = { expense: 0, revenue: 0 });
 
-            rangeData.forEach(t => {
+            flowData.forEach(t => {
                 const k = t.date.substring(0, 7);
                 if(monthsMap[k]) {
                     if(t.type === 'despesa') monthsMap[k].expense += t.value;
@@ -1210,6 +1229,8 @@
             });
 
             // Chart A: Timeline Detail (Yellow Line)
+            // Lógica: Usa sempre o rangeData. 
+            // Se !Merge, rangeData é apenas o mês selecionado. Se Merge, rangeData é o período.
             const timelineExpenses = rangeData.filter(t => t.type === 'despesa').sort((a,b) => new Date(a.date) - new Date(b.date));
             const labelsLine = timelineExpenses.map(t => `${t.category} (${t.date.split('-')[2]}/${t.date.split('-')[1]})`);
             const dataLine = timelineExpenses.map(t => t.value);
