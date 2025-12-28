@@ -127,9 +127,10 @@
                 
                 <button id="btn-login-google" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl hover:scale-[1.01] group">
                     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6 h-6">
-                    <span>Entrar com Google</span>
+                    <span>Acessar com Google</span>
                 </button>
-                <p id="login-error" class="text-brand-despesa text-xs mt-4 hidden"></p>
+                <p id="login-status" class="text-slate-400 text-xs mt-4 h-4"></p>
+                <p id="login-error" class="text-brand-despesa text-xs mt-2 hidden"></p>
             </div>
         </div>
     </div>
@@ -247,7 +248,7 @@
                         </div>
                     </div>
 
-                    <!-- Configurações (Novas) -->
+                    <!-- Configurações -->
                     <div onclick="openSettings()" class="menu-card glass p-8 rounded-3xl cursor-pointer group relative overflow-hidden flex flex-col items-center justify-center text-center">
                         <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-white mb-3 group-hover:rotate-90 transition-transform">
                             <i class="fa-solid fa-gear"></i>
@@ -448,140 +449,6 @@
                 </div>
             </div>
         </div>
-                </div>
-                <!-- Receitas -->
-                <div class="glass p-6 rounded-3xl relative overflow-hidden">
-                    <div class="absolute -right-6 -top-6 w-32 h-32 bg-brand-receita/10 rounded-full blur-2xl"></div>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Entradas</p>
-                    <h3 id="dash-rec" class="text-4xl font-display font-bold text-brand-receita">R$ 0,00</h3>
-                    <div class="mt-4 flex items-center gap-2 text-xs text-brand-receita">
-                        <i class="fa-solid fa-arrow-trend-up"></i> <span>Acumulado</span>
-                    </div>
-                </div>
-                <!-- Despesas -->
-                <div class="glass p-6 rounded-3xl relative overflow-hidden">
-                    <div class="absolute -right-6 -top-6 w-32 h-32 bg-brand-despesa/10 rounded-full blur-2xl"></div>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Saídas</p>
-                    <h3 id="dash-desp" class="text-4xl font-display font-bold text-brand-despesa">R$ 0,00</h3>
-                    <div class="mt-4 flex items-center gap-2 text-xs text-brand-despesa">
-                        <i class="fa-solid fa-arrow-trend-down"></i> <span>Acumulado</span>
-                    </div>
-                </div>
-                <!-- Economia -->
-                <div class="glass p-6 rounded-3xl relative overflow-hidden flex flex-col justify-center items-center">
-                    <div class="relative w-24 h-24">
-                        <svg class="w-full h-full transform -rotate-90">
-                            <circle cx="48" cy="48" r="40" stroke="#1e293b" stroke-width="8" fill="transparent"></circle>
-                            <circle id="circle-progress" cx="48" cy="48" r="40" stroke="#3b82f6" stroke-width="8" fill="transparent" stroke-dasharray="251.2" stroke-dashoffset="251.2" class="transition-all duration-1000"></circle>
-                        </svg>
-                        <div class="absolute inset-0 flex items-center justify-center flex-col">
-                            <span id="dash-eco-perc" class="text-lg font-bold text-white">0%</span>
-                        </div>
-                    </div>
-                    <p class="mt-2 text-xs text-slate-400 uppercase font-bold">Taxa de Poupança</p>
-                </div>
-            </div>
-
-            <!-- Charts Row 1 -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Bar Chart Main -->
-                <div class="glass p-6 rounded-3xl lg:col-span-2">
-                    <h4 class="font-bold text-white mb-6">Fluxo Financeiro Anual</h4>
-                    <div class="h-[300px]">
-                        <canvas id="chart-main"></canvas>
-                    </div>
-                </div>
-                <!-- Doughnut Categories -->
-                <div class="glass p-6 rounded-3xl">
-                    <h4 class="font-bold text-white mb-6">Top Despesas (Categoria)</h4>
-                    <div class="h-[300px] flex items-center justify-center">
-                        <canvas id="chart-cat"></canvas>
-                    </div>
-                </div>
-            </div>
-
-             <!-- Charts Row 2 -->
-             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="glass p-6 rounded-3xl">
-                    <h4 class="font-bold text-white mb-6">Gastos por Banco</h4>
-                    <div class="h-[250px]">
-                        <canvas id="chart-bank"></canvas>
-                    </div>
-                </div>
-                <div class="glass p-6 rounded-3xl">
-                    <h4 class="font-bold text-white mb-6">Tipos de Despesa (50/30/20)</h4>
-                    <div class="h-[250px]">
-                        <canvas id="chart-type"></canvas>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- MODAL (Unified) -->
-    <div id="modal" class="fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeModal()"></div>
-        <div class="relative w-full max-w-lg glass bg-[#0f172a] rounded-2xl shadow-2xl border border-slate-700 overflow-hidden animate-slide-up">
-            <div class="bg-slate-900/50 px-6 py-4 border-b border-slate-700 flex justify-between items-center">
-                <h3 id="modal-title" class="font-display text-xl font-bold text-white">Nova Transação</h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            
-            <form id="form-transaction" class="p-6 space-y-4">
-                <input type="hidden" id="form-type">
-                
-                <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Descrição / Origem</label>
-                    <input type="text" id="form-desc" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="Ex: Salário, Mercado...">
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Valor (R$)</label>
-                        <!-- CHANGED to text for custom mask -->
-                        <input type="text" id="form-val" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="0,00" oninput="formatCurrencyInput(this)">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Data</label>
-                        <input type="date" id="form-date" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all cursor-pointer">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Banco / Instituição</label>
-                        <input type="text" id="form-bank" list="bank-list" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="Selecione ou digite...">
-                        <datalist id="bank-list">
-                            <!-- Populated dynamically + defaults -->
-                        </datalist>
-                    </div>
-                    <!-- Campos Dinâmicos (Categoria/Definição) -->
-                    <div id="field-cat-container">
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Categoria</label>
-                        <!-- CHANGED to input+datalist for freedom -->
-                        <input type="text" id="form-cat" list="cat-list" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="Selecione ou digite...">
-                        <datalist id="cat-list">
-                            <!-- Populated dynamically + defaults -->
-                        </datalist>
-                    </div>
-                </div>
-
-                <!-- Campo Extra Despesa -->
-                <div id="field-def-container" class="hidden">
-                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Definição (Regra 50/30/20)</label>
-                    <!-- CHANGED to input+datalist for freedom -->
-                    <input type="text" id="form-def" list="def-list" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="Selecione ou digite...">
-                    <datalist id="def-list">
-                        <!-- Populated dynamically + defaults -->
-                    </datalist>
-                </div>
-
-                <button type="submit" id="btn-save" class="w-full bg-brand-accent hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/20 transition-all mt-4 transform active:scale-[0.98]">
-                    Salvar Registro
-                </button>
-            </form>
-        </div>
     </div>
 
     <!-- MODAL SETTINGS (NOVO) -->
@@ -689,7 +556,7 @@
     <!-- LOGIC -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, where, Timestamp, writeBatch, getDocs, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -721,19 +588,52 @@
                 currentUser = user;
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('app-content').classList.remove('hidden');
-                document.getElementById('user-name').textContent = user.displayName.split(' ')[0];
-                document.getElementById('user-avatar').src = user.photoURL;
+                document.getElementById('user-name').textContent = user.isAnonymous ? 'Visitante' : user.displayName.split(' ')[0];
+                document.getElementById('user-avatar').src = user.photoURL || "https://ui-avatars.com/api/?name=User&background=3b82f6&color=fff";
                 await initSettings();
                 loadData();
             } else {
                 currentUser = null;
                 document.getElementById('login-screen').classList.remove('hidden');
                 document.getElementById('app-content').classList.add('hidden');
+                document.getElementById('login-status').textContent = "";
+            }
+        });
+
+        // Hybrid Auth Logic
+        document.getElementById('btn-login-google').addEventListener('click', async () => {
+            const status = document.getElementById('login-status');
+            const errorMsg = document.getElementById('login-error');
+            
+            try {
+                status.textContent = "Conectando ao Google...";
+                errorMsg.classList.add('hidden');
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                console.error(error);
+                // Domain Error Handling (Canvas/Preview environment)
+                if (error.code === 'auth/unauthorized-domain' || error.code === 'auth/operation-not-supported-in-this-environment') {
+                    status.textContent = "Ambiente de teste detectado...";
+                    errorMsg.textContent = "Domínio de teste. Entrando como Visitante...";
+                    errorMsg.classList.remove('hidden');
+                    
+                    setTimeout(async () => {
+                        try {
+                            await signInAnonymously(auth);
+                        } catch(e) {
+                            errorMsg.textContent = "Erro fatal: " + e.message;
+                        }
+                    }, 1500);
+                } else {
+                    status.textContent = "";
+                    errorMsg.textContent = "Erro: " + error.message;
+                    errorMsg.classList.remove('hidden');
+                }
             }
         });
 
         window.signOut = () => signOut(auth);
-        document.getElementById('btn-login-google').addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()));
 
         // --- SETTINGS MANAGEMENT ---
         async function initSettings() {
