@@ -160,7 +160,6 @@
             </div>
 
             <div class="p-4 border-t border-slate-800">
-                <!-- CORREÇÃO AQUI: onclick="logoutApp()" sem argumentos -->
                 <div class="flex items-center gap-3 justify-center lg:justify-start cursor-pointer hover:bg-slate-800 p-2 rounded-lg transition-colors" onclick="logoutApp()">
                     <img id="user-avatar" src="" class="w-8 h-8 rounded-full border border-slate-700">
                     <div class="hidden lg:block overflow-hidden">
@@ -1306,7 +1305,11 @@ const firebaseConfig = {
             // Chart B: Gastos por Banco (Período)
             const bankMap = {};
             rangeData.filter(t => t.type === 'despesa').forEach(t => {
-                const b = t.bank || 'Carteira';
+                let b = t.bank || 'Carteira';
+                // Normalização: remove espaços e capitaliza a primeira letra
+                b = b.trim(); 
+                if(b) b = b.charAt(0).toUpperCase() + b.slice(1);
+                
                 bankMap[b] = (bankMap[b] || 0) + t.value;
             });
             const sortedBanks = Object.entries(bankMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
@@ -1447,86 +1450,6 @@ const firebaseConfig = {
             document.getElementById('btn-save').textContent = 'Atualizar Registro';
         }
 
-        document.getElementById('grid-search').addEventListener('input', updateInterface);
-        document.getElementById('filter-month').addEventListener('change', updateInterface);
-        document.getElementById('dash-filter-month-1').addEventListener('change', (e) => window.updateDashboardAnalytics());
-        document.getElementById('dash-filter-month-2').addEventListener('change', (e) => window.updateDashboardAnalytics());
-
-        window.clearAllData = async () => {
-            if(!confirm("CUIDADO: Isso apagará tudo!")) return;
-            const batch = writeBatch(db);
-            transactions.forEach(t => batch.delete(doc(db, "transacoes_financeiras", t.id)));
-            await batch.commit();
-        }
-
-        // --- NAVIGATION & MODALS ---
-        window.switchView = (viewName) => {
-            ['home', 'datagrid'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
-            document.getElementById(`view-${viewName}`).classList.remove('hidden');
-            
-            document.getElementById('nav-home').classList.remove('text-brand-accent', 'bg-slate-800/50');
-            document.getElementById('nav-datagrid').classList.remove('text-brand-accent', 'bg-slate-800/50');
-            
-            document.getElementById(`nav-${viewName}`).classList.add('text-brand-accent', 'bg-slate-800/50');
-            document.getElementById(`nav-${viewName}`).classList.remove('text-slate-400');
-        }
-
-        window.switchTableTab = (tab) => {
-            if(tab === 'receitas') {
-                document.getElementById('tab-content-receitas').classList.remove('hidden');
-                document.getElementById('tab-content-despesas').classList.add('hidden');
-                document.getElementById('tab-btn-receitas').classList.add('border-brand-receita', 'text-brand-receita');
-                document.getElementById('tab-btn-receitas').classList.remove('border-transparent', 'text-slate-500');
-                document.getElementById('tab-btn-despesas').classList.add('border-transparent', 'text-slate-500');
-                document.getElementById('tab-btn-despesas').classList.remove('border-brand-despesa', 'text-brand-despesa');
-            } else {
-                document.getElementById('tab-content-receitas').classList.add('hidden');
-                document.getElementById('tab-content-despesas').classList.remove('hidden');
-                document.getElementById('tab-btn-despesas').classList.add('border-brand-despesa', 'text-brand-despesa'); 
-                document.getElementById('tab-btn-despesas').classList.remove('border-transparent', 'text-slate-500');
-                document.getElementById('tab-btn-receitas').classList.add('border-transparent', 'text-slate-500');
-                document.getElementById('tab-btn-receitas').classList.remove('border-brand-receita', 'text-brand-receita');
-            }
-        }
-
-        window.openDashboardFull = () => {
-            document.getElementById('dashboard-full').classList.add('active');
-            updateInterface(); 
-        }
-        window.closeDashboardFull = () => document.getElementById('dashboard-full').classList.remove('active');
-
-        window.openModal = (type) => {
-            const modal = document.getElementById('modal');
-            if(modal) {
-                modal.classList.remove('hidden');
-                document.getElementById('form-id').value = ''; 
-                document.getElementById('form-type').value = type;
-                document.getElementById('modal-title').textContent = type === 'receita' ? 'Nova Receita' : 'Nova Despesa';
-                document.getElementById('modal-title').className = `font-display text-xl font-bold ${type === 'receita' ? 'text-brand-receita' : 'text-brand-despesa'}`;
-                
-                const btnSave = document.getElementById('btn-save');
-                btnSave.textContent = 'Salvar Registro';
-                btnSave.className = `w-full font-bold py-4 rounded-xl shadow-lg transition-all mt-4 text-white ${type === 'receita' ? 'bg-brand-receita hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-brand-despesa hover:bg-rose-600 shadow-rose-500/20'}`;
-                
-                if(type === 'receita') {
-                    document.getElementById('field-cat-container').classList.add('hidden');
-                    document.getElementById('field-def-container').classList.add('hidden');
-                } else {
-                    document.getElementById('field-cat-container').classList.remove('hidden');
-                    document.getElementById('field-def-container').classList.remove('hidden');
-                }
-                
-                if(!document.getElementById('form-id').value) {
-                    document.getElementById('form-transaction').reset();
-                    document.getElementById('form-type').value = type;
-                    document.getElementById('form-date').valueAsDate = new Date();
-                }
-            }
-        }
-        window.closeModal = (modalId) => {
-            document.getElementById(modalId).classList.add('hidden');
-        }
-
         document.getElementById('form-transaction').addEventListener('submit', async (e) => {
             e.preventDefault();
             const type = document.getElementById('form-type').value;
@@ -1541,7 +1464,7 @@ const firebaseConfig = {
                 title: document.getElementById('form-desc').value,
                 value: value,
                 date: document.getElementById('form-date').value,
-                bank: document.getElementById('form-bank').value,
+                bank: document.getElementById('form-bank').value.trim(),
             };
 
             if(!id) data.createdAt = Timestamp.now();
@@ -1595,7 +1518,7 @@ const firebaseConfig = {
                                 type: type,
                                 value: val,
                                 date: date,
-                                bank: keys['banco'] || keys['instituicao bancaria'] || keys['conta'] || 'Não informado',
+                                bank: (keys['banco'] || keys['instituicao bancaria'] || keys['conta'] || 'Não informado').toString().trim(),
                                 title: keys['descricao'] || keys['origem'] || 'Sem título',
                                 createdAt: Timestamp.now()
                             };
@@ -1655,4 +1578,4 @@ const firebaseConfig = {
 
     </script>
 </body>
-</html>"
+</html>
