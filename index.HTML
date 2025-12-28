@@ -101,6 +101,12 @@
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
             border-color: rgba(59, 130, 246, 0.5);
         }
+        
+        /* Input Month Customization */
+        input[type="month"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
     </style>
 </head>
 <body class="text-slate-300 font-sans antialiased selection:bg-brand-accent selection:text-white">
@@ -263,6 +269,12 @@
                         <p class="text-slate-400 text-sm">Gerenciamento de registros</p>
                     </div>
                     <div class="flex gap-4">
+                        <!-- Filtro de Mês -->
+                        <div class="relative">
+                            <input type="month" id="filter-month" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg px-4 py-2 focus:ring-1 focus:ring-brand-accent focus:border-brand-accent outline-none transition-all cursor-pointer">
+                        </div>
+
+                        <!-- Busca -->
                         <div class="relative">
                             <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
                             <input type="text" id="grid-search" placeholder="Buscar categoria, banco..." class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg pl-9 pr-4 py-2 focus:ring-1 focus:ring-brand-accent focus:border-brand-accent outline-none w-64 transition-all">
@@ -542,20 +554,49 @@
 
         // --- UI LOGIC ---
         function updateInterface() {
-            // Filter Arrays
-            const receitas = transactions.filter(t => t.type === 'receita');
-            const despesas = transactions.filter(t => t.type === 'despesa');
+            // Check filters
+            const monthFilter = document.getElementById('filter-month').value;
+            const searchFilter = document.getElementById('grid-search').value.toLowerCase();
+
+            // Filter Global Data
+            let filteredData = transactions;
+
+            // 1. By Month
+            if(monthFilter) {
+                filteredData = filteredData.filter(t => t.date.startsWith(monthFilter));
+            }
+
+            // 2. By Text (Affects Table Primarily, but here we can keep tables filtered by search, and KPIs by month)
+            // But usually KPIs reflect the current view. Let's make KPIs reflect Date Filter ONLY, and tables reflect Both.
+            
+            // Separate lists for KPIs (Date only)
+            const kpiData = filteredData; 
+
+            // Separate lists for Tables (Date + Search)
+            const tableData = filteredData.filter(t => 
+                (t.title && t.title.toLowerCase().includes(searchFilter)) || 
+                (t.category && t.category.toLowerCase().includes(searchFilter)) ||
+                (t.bank && t.bank.toLowerCase().includes(searchFilter))
+            );
+
+            // Filter Arrays for KPIs
+            const receitasKPI = kpiData.filter(t => t.type === 'receita');
+            const despesasKPI = kpiData.filter(t => t.type === 'despesa');
+
+            // Filter Arrays for Tables
+            const receitasTable = tableData.filter(t => t.type === 'receita');
+            const despesasTable = tableData.filter(t => t.type === 'despesa');
 
             // 1. DataGrid Render
-            renderTable('tbody-receitas', receitas, ['date', 'title', 'bank', 'value'], 'receita');
-            renderTable('tbody-despesas', despesas, ['date', 'title', 'category', 'definition', 'value'], 'despesa');
+            renderTable('tbody-receitas', receitasTable, ['date', 'title', 'bank', 'value'], 'receita');
+            renderTable('tbody-despesas', despesasTable, ['date', 'title', 'category', 'definition', 'value'], 'despesa');
             
-            document.getElementById('count-rec').textContent = `${receitas.length} registros`;
-            document.getElementById('count-desp').textContent = `${despesas.length} registros`;
+            document.getElementById('count-rec').textContent = `${receitasTable.length} registros`;
+            document.getElementById('count-desp').textContent = `${despesasTable.length} registros`;
 
             // 2. KPIs Dashboard
-            const totalRec = receitas.reduce((sum, t) => sum + t.value, 0);
-            const totalDesp = despesas.reduce((sum, t) => sum + t.value, 0);
+            const totalRec = receitasKPI.reduce((sum, t) => sum + t.value, 0);
+            const totalDesp = despesasKPI.reduce((sum, t) => sum + t.value, 0);
             const saldo = totalRec - totalDesp;
             
             const fmt = new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'});
@@ -577,23 +618,15 @@
             // Color logic for circle
             circle.style.stroke = percentage > 20 ? '#10b981' : (percentage > 0 ? '#fbbf24' : '#ef4444');
 
-            // 3. Update Charts
-            updateCharts(receitas, despesas);
+            // 3. Update Charts (Based on KPI Data - Time Filtered)
+            updateCharts(receitasKPI, despesasKPI);
         }
 
         function renderTable(elementId, data, cols, type) {
             const tbody = document.getElementById(elementId);
             tbody.innerHTML = '';
             
-            // Apply Search Filter
-            const term = document.getElementById('grid-search').value.toLowerCase();
-            const filtered = data.filter(t => 
-                (t.title && t.title.toLowerCase().includes(term)) || 
-                (t.category && t.category.toLowerCase().includes(term)) ||
-                (t.bank && t.bank.toLowerCase().includes(term))
-            );
-
-            filtered.forEach(t => {
+            data.forEach(t => {
                 const tr = document.createElement('tr');
                 tr.className = "table-row-hover border-b border-slate-800 transition-colors";
                 
@@ -603,7 +636,9 @@
                     else if(col === 'value') {
                         const color = type === 'receita' ? 'text-brand-receita' : 'text-brand-despesa';
                         const sign = type === 'receita' ? '+' : '-';
-                        html += `<td class="px-4 py-4 text-right font-bold ${color}">${sign} ${t.value.toFixed(2)}</td>`;
+                        // Using pt-BR formatting manually for comma separator
+                        const formattedValue = t.value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        html += `<td class="px-4 py-4 text-right font-bold ${color}">${sign} ${formattedValue}</td>`;
                     }
                     else if(col === 'category' || col === 'definition') {
                         html += `<td class="px-4 py-4"><span class="bg-slate-800 border border-slate-700 text-xs px-2 py-1 rounded text-slate-300">${t[col] || '-'}</span></td>`;
@@ -626,6 +661,8 @@
         }
 
         document.getElementById('grid-search').addEventListener('input', updateInterface);
+        document.getElementById('filter-month').addEventListener('change', updateInterface); // Date Listener
+
         window.clearAllData = async () => {
             if(!confirm("CUIDADO: Isso apagará tudo!")) return;
             const batch = writeBatch(db);
@@ -893,9 +930,13 @@
             return `${p[2]}/${p[1]}/${p[0]}`;
         }
         
-        // Date Display
+        // Date Display & Initial Filter
         const now = new Date();
         document.getElementById('current-date').textContent = now.toLocaleDateString('pt-BR', {weekday: 'long', day: 'numeric', month: 'long'});
+        
+        // Set default filter to current month
+        const currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        document.getElementById('filter-month').value = currentMonth;
 
     </script>
 </body>
