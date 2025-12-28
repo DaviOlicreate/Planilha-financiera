@@ -783,17 +783,14 @@
             // Receita Total
             const totalRec = monthData.filter(t => t.type === 'receita').reduce((sum, t) => sum + t.value, 0);
             
-            // Separação de Investimento vs Despesa Real
-            const allOutflows = monthData.filter(t => t.type === 'despesa');
-            const investments = allOutflows.filter(t => t.category === 'Investimento' || t.title.toLowerCase().includes('investimento'));
-            const realExpenses = allOutflows.filter(t => t.category !== 'Investimento' && !t.title.toLowerCase().includes('investimento'));
-
-            const valInvest = investments.reduce((sum, t) => sum + t.value, 0);
-            const valExp = realExpenses.reduce((sum, t) => sum + t.value, 0);
+            // Despesa Total (All outflows are now considered expenses for balance calculation)
+            const valExp = monthData.filter(t => t.type === 'despesa').reduce((sum, t) => sum + t.value, 0);
             
-            // Saldo é baseado no total absoluto do usuário (histórico completo) ou mês? 
-            // Dashboard executivo geralmente mostra saldo do período ou acumulado. Vamos fazer fluxo de caixa do mês.
-            const monthBalance = totalRec - (valExp + valInvest);
+            // Saldo / Investimento (Revenue - Expense)
+            const monthBalance = totalRec - valExp;
+            
+            // Investment is now the Balance (Surplus)
+            const valInvest = monthBalance; 
 
             // Update DOM KPIs
             document.getElementById('dash-rec').textContent = fmt.format(totalRec);
@@ -823,6 +820,7 @@
 
             // Gauge F: Meta de Investimentos (Usando o SVG Circle)
             // Meta simulada: 20% da receita líquida deveria ser investimento
+            // Savings Rate now uses the calculated Balance (valInvest)
             const savingsRate = totalRec > 0 ? (valInvest / totalRec) * 100 : 0;
             const savingsGoal = 20; // 20%
             
@@ -928,16 +926,16 @@
             const monthsMap = {};
             for(let i=1; i<=12; i++) {
                 const key = `${currentYear}-${String(i).padStart(2,'0')}`;
-                monthsMap[key] = { expense: 0, invest: 0 };
+                monthsMap[key] = { expense: 0, revenue: 0 }; // Updated to track revenue for balance calculation
             }
 
             yearData.forEach(t => {
                 const k = t.date.substring(0, 7);
-                if(monthsMap[k] && t.type === 'despesa') {
-                    if(t.category === 'Investimento' || t.title.toLowerCase().includes('investimento')) {
-                        monthsMap[k].invest += t.value;
-                    } else {
+                if(monthsMap[k]) {
+                    if(t.type === 'despesa') {
                         monthsMap[k].expense += t.value;
+                    } else if(t.type === 'receita') {
+                        monthsMap[k].revenue += t.value;
                     }
                 }
             });
@@ -945,7 +943,11 @@
             // Prepare Data Arrays
             const monthKeys = Object.keys(monthsMap).sort();
             const dataExp = monthKeys.map(k => monthsMap[k].expense);
-            const dataInv = monthKeys.map(k => monthsMap[k].invest);
+            // Investment is now Balance: Revenue - Expense
+            // Using max(0, val) to ensure line doesn't dip negative if not desired, 
+            // but for "Saldo" negative is possible. Let's stick to positive interpretation for "Investment Sum" context or raw balance? 
+            // Given "Soma de INVEST." usually implies asset growth, let's floor at 0.
+            const dataInv = monthKeys.map(k => Math.max(0, monthsMap[k].revenue - monthsMap[k].expense));
             
             // Fixed Labels: JAN, FEV, MAR...
             const fixedMonthLabels = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
