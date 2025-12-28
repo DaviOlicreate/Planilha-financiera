@@ -601,6 +601,53 @@
             };
         }
 
+        // --- GAUGE POINTER PLUGIN ---
+        const gaugeNeedle = {
+            id: 'gaugeNeedle',
+            afterDatasetDraw(chart, args, options) {
+                const { ctx, config, data, chartArea: { top, bottom, left, right, width, height } } = chart;
+                ctx.save();
+                
+                // Value & Total
+                const needleValue = data.datasets[0].needleValue || 0;
+                // Assuming the gauge covers a certain range. For minimalist scale we treat dataset total as the "Max" capacity
+                const dataTotal = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                
+                // Map value to angle
+                // Start: -90deg (270), End: 90deg (360+90=450?) or ChartJS logic:
+                // Circumference 180, Rotation 270.
+                // 0% = 270deg (Left), 100% = 90deg (Right)
+                let percentage = needleValue / userGoals.gasto; // Default base
+                if(chart.canvas.id === 'gaugeEconomia') percentage = needleValue / userGoals.investimento;
+                
+                if(percentage > 1) percentage = 1; 
+                if(percentage < 0) percentage = 0;
+
+                const angle = Math.PI + (percentage * Math.PI); // Start at PI (Left) -> 2PI (Right)
+
+                const cx = width / 2;
+                const cy = chart._metasets[0].data[0].y;
+
+                // Draw Needle
+                ctx.translate(cx, cy);
+                ctx.rotate(angle);
+                ctx.beginPath();
+                ctx.moveTo(0, -2); // Thickness at pivot
+                ctx.lineTo(height - (ctx.canvas.offsetTop + 40), 0); // Length adjust
+                ctx.lineTo(0, 2);
+                ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#334155';
+                ctx.fill();
+                
+                // Draw Pivot Dot
+                ctx.rotate(-angle);
+                ctx.beginPath();
+                ctx.arc(0, 0, 4, 0, 10);
+                ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#334155';
+                ctx.fill();
+                ctx.restore();
+            }
+        };
+
         function renderCharts(data) {
             destroyCharts();
             const colors = getChartColors();
@@ -709,35 +756,38 @@
                 }
             });
 
-            // 3. Gauge Despesas (Meta)
+            // 3. Gauge Despesas (Minimalist with Needle)
+            // Zones: 0-75% (Green), 75-90% (Yellow), 90-100% (Red)
+            // Represented as relative segments of the doughnut
             const percGasto = Math.min((totalDespesaMonth / userGoals.gasto) * 100, 100);
-            const colorGasto = percGasto > 90 ? '#f43f5e' : (percGasto > 50 ? '#fbbf24' : '#10b981');
             
             charts.gaugeDespesas = new Chart(document.getElementById('gaugeDespesas'), {
                 type: 'doughnut',
                 data: {
-                    labels: ['Gasto', 'Restante'],
                     datasets: [{
-                        data: [totalDespesaMonth, Math.max(0, userGoals.gasto - totalDespesaMonth)],
-                        backgroundColor: [colorGasto, colors.grid],
+                        data: [75, 15, 10], // Fixed minimalist zones
+                        backgroundColor: ['#10b981', '#fbbf24', '#f43f5e'],
                         borderWidth: 0,
                         circumference: 180,
-                        rotation: 270
+                        rotation: 270,
+                        needleValue: totalDespesaMonth
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false }, tooltip: { enabled: false } },
-                    cutout: '75%'
-                }
+                    cutout: '85%' // Minimalist thin line
+                },
+                plugins: [gaugeNeedle]
             });
             document.getElementById('gauge-despesa-val').innerHTML = `<span class="${percGasto>90?'text-rose-500':''}">R$ ${Math.round(totalDespesaMonth)}</span> <span class="text-sm font-normal text-slate-400">/ ${userGoals.gasto}</span>`;
             document.getElementById('gauge-despesa-status').textContent = percGasto > 100 ? "Meta Estourada!" : (percGasto > 80 ? "Cuidado" : "No Controle");
             document.getElementById('gauge-despesa-status').className = `text-xs font-bold uppercase mt-1 ${percGasto > 90 ? 'text-rose-500' : 'text-emerald-500'}`;
 
 
-            // 4. Gauge Economia
+            // 4. Gauge Economia (Minimalist with Needle)
+            // Zones: 0-30% (Red), 30-60% (Yellow), 60-100% (Green) - Inverted logic because more savings is better
             const saldoLiquido = Math.max(0, totalReceitaMonth - totalDespesaMonth);
             const percEco = Math.min((saldoLiquido / userGoals.investimento) * 100, 100);
             
@@ -745,19 +795,21 @@
                 type: 'doughnut',
                 data: {
                     datasets: [{
-                        data: [saldoLiquido, Math.max(0, userGoals.investimento - saldoLiquido)],
-                        backgroundColor: ['#6366f1', colors.grid],
+                        data: [30, 30, 40], // Low savings, mid, high
+                        backgroundColor: ['#f43f5e', '#fbbf24', '#10b981'],
                         borderWidth: 0,
                         circumference: 180,
-                        rotation: 270
+                        rotation: 270,
+                        needleValue: saldoLiquido
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false }, tooltip: { enabled: false } },
-                    cutout: '75%'
-                }
+                    cutout: '85%' // Minimalist thin line
+                },
+                plugins: [gaugeNeedle]
             });
             document.getElementById('gauge-economia-val').innerHTML = `<span class="text-indigo-500">R$ ${Math.round(saldoLiquido)}</span> <span class="text-sm font-normal text-slate-400">/ ${userGoals.investimento}</span>`;
             document.getElementById('gauge-economia-status').textContent = percEco >= 100 ? "Meta Atingida!" : "Em progresso";
