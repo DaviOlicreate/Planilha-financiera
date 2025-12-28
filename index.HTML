@@ -324,6 +324,7 @@
                                         <th class="px-4 py-3">Descrição</th>
                                         <th class="px-4 py-3">Categoria</th>
                                         <th class="px-4 py-3">Definição</th>
+                                        <th class="px-4 py-3">Banco</th>
                                         <th class="px-4 py-3 text-right">Valor</th>
                                         <th class="px-4 py-3 text-center">Ações</th>
                                     </tr>
@@ -589,7 +590,7 @@
 
             // 1. DataGrid Render
             renderTable('tbody-receitas', receitasTable, ['date', 'title', 'bank', 'value'], 'receita');
-            renderTable('tbody-despesas', despesasTable, ['date', 'title', 'category', 'definition', 'value'], 'despesa');
+            renderTable('tbody-despesas', despesasTable, ['date', 'title', 'category', 'definition', 'bank', 'value'], 'despesa');
             
             document.getElementById('count-rec').textContent = `${receitasTable.length} registros`;
             document.getElementById('count-desp').textContent = `${despesasTable.length} registros`;
