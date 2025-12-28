@@ -405,7 +405,7 @@
                         <canvas id="chart-main"></canvas>
                     </div>
                 </div>
-                <!-- Top Categories (Restored Doughnut) -->
+                <!-- Top Categories (Restored Bar) -->
                 <div class="glass p-6 rounded-3xl">
                     <h4 class="font-bold text-white mb-1">Top Categorias</h4>
                     <p class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Maiores Despesas (Mês)</p>
@@ -978,7 +978,7 @@
                 options: commonOptions
             });
 
-            // NEW Chart: Top Categories (Restored) - ID: chart-top-cat
+            // NEW Chart: Top Categories (Restored as Bar) - ID: chart-top-cat
             const expenses = monthData.filter(t => t.type === 'despesa');
             const catMap = {};
             expenses.forEach(t => {
@@ -989,21 +989,33 @@
 
             if(chartInstances.topCat) chartInstances.topCat.destroy();
             chartInstances.topCat = new Chart(document.getElementById('chart-top-cat'), {
-                type: 'doughnut',
+                type: 'bar',
                 data: {
                     labels: sortedCats.map(x => x[0]),
                     datasets: [{
+                        label: 'Gasto',
                         data: sortedCats.map(x => x[1]),
                         backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#64748b'],
-                        borderWidth: 0
+                        borderRadius: 4,
+                        barThickness: 30
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { 
-                        legend: { position: 'right', labels: { color: '#cbd5e1' } },
+                        legend: { display: false },
                         tooltip: commonOptions.plugins.tooltip
+                    },
+                    scales: {
+                        y: { 
+                            grid: { color: '#334155', borderDash: [2, 4] }, 
+                            ticks: { color: '#94a3b8', callback: (val) => val.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0}) } 
+                        },
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { color: '#94a3b8' } 
+                        }
                     }
                 }
             });
@@ -1012,7 +1024,8 @@
             // Filter all month expenses, sort by Date
             const timelineExpenses = monthData.filter(t => t.type === 'despesa').sort((a,b) => new Date(a.date) - new Date(b.date));
             
-            const labelsLine = timelineExpenses.map(t => `${t.title} (${t.date.split('-')[2]}/${t.date.split('-')[1]})`);
+            // FIXED: Using Category as requested
+            const labelsLine = timelineExpenses.map(t => `${t.category} (${t.date.split('-')[2]}/${t.date.split('-')[1]})`);
             const dataLine = timelineExpenses.map(t => t.value);
             const totalLine = dataLine.reduce((a,b) => a+b, 0);
 
