@@ -583,8 +583,26 @@
                             if (!catKey) catKey = findKey(['banco', 'conta']); 
 
                             if (valueKey) {
-                                let valStr = String(row[valueKey]);
-                                let val = parseFloat(valStr.replace('R$','').replace(/\./g,'').replace(',','.').trim());
+                                let valRaw = row[valueKey];
+                                let val = 0;
+
+                                // Verifica se já veio como número do Excel
+                                if (typeof valRaw === 'number') {
+                                    val = valRaw;
+                                } else {
+                                    // Se for string, faz o tratamento para BRL
+                                    let valStr = String(valRaw).trim();
+                                    valStr = valStr.replace('R$', '').trim();
+                                    
+                                    // Se tiver vírgula, assume que é formato BR (Ex: 1.000,00 ou 38,77)
+                                    if (valStr.includes(',')) {
+                                        val = parseFloat(valStr.replace(/\./g, '').replace(',', '.'));
+                                    } else {
+                                        // Se não tiver vírgula, pode ser formato US ou apenas números (Ex: 38.77 ou 1000)
+                                        val = parseFloat(valStr);
+                                    }
+                                }
+                                
                                 if (isNaN(val)) val = 0;
 
                                 let dateVal = dateKey ? row[dateKey] : null;
