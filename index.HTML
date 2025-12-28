@@ -37,6 +37,9 @@
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- SheetJS (Para ler Excel/CSV) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
     <style>
         /* Custom Scrollbar */
@@ -56,6 +59,10 @@
         /* Fade In Animation */
         .fade-in { animation: fadeIn 0.5s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Loading Spinner */
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid white; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-200 font-sans antialiased overflow-hidden selection:bg-emerald-500 selection:text-white">
@@ -103,6 +110,13 @@
                     <button onclick="openModal('despesa')" class="w-full bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-200 font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-sm">
                         <i class="fa-solid fa-minus text-red-400"></i> Nova Despesa
                     </button>
+                    
+                    <!-- BOTÃO IMPORTAR -->
+                    <label for="file-upload" class="w-full cursor-pointer bg-slate-800 hover:bg-slate-700 border border-dashed border-slate-600 hover:border-slate-400 text-slate-400 hover:text-white font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-sm mt-4">
+                        <i class="fa-solid fa-file-import"></i> Importar Planilha
+                    </label>
+                    <input type="file" id="file-upload" accept=".xlsx, .xls, .csv" class="hidden">
+                    <p id="import-status" class="text-[10px] text-center text-slate-500 h-4"></p>
                 </div>
 
                 <!-- Navigation -->
@@ -365,7 +379,7 @@
         // Import Firebase SDK
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, where, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, where, Timestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         // --- 1. CONFIGURAÇÃO (CHAVES REAIS) ---
         const firebaseConfig = {
@@ -498,6 +512,126 @@
                 }
             }
         };
+
+        // --- IMPORTAR PLANILHA LOGIC ---
+        const fileInput = document.getElementById('file-upload');
+        const importStatus = document.getElementById('import-status');
+
+        fileInput.addEventListener('change', handleFileSelect);
+
+        async function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (!currentUser) {
+                alert("Faça login para importar.");
+                return;
+            }
+
+            importStatus.textContent = "Lendo arquivo...";
+            importStatus.className = "text-[10px] text-center text-blue-400 h-4 animate-pulse";
+
+            const reader = new FileReader();
+            
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    
+                    // Pega a primeira aba
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // Converte para JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (jsonData.length === 0) throw new Error("Planilha vazia.");
+
+                    importStatus.textContent = `Processando ${jsonData.length} linhas...`;
+
+                    // Processar e Salvar no Firestore (Batch)
+                    const batch = writeBatch(db);
+                    let count = 0;
+                    
+                    // Limite do Firestore Batch é 500. Vamos fazer simples para pequenos arquivos ou chunks
+                    // Para arquivos grandes, seria ideal quebrar em vários batches.
+                    // Aqui assumimos < 500 linhas por vez para simplificar.
+                    
+                    const collectionRef = collection(db, "transacoes_financeiras");
+
+                    jsonData.forEach((row) => {
+                        // Mapeamento Inteligente de Colunas
+                        // Tenta encontrar colunas comuns independentemente de maiúsculas/minúsculas
+                        const keys = Object.keys(row);
+                        const getKey = (term) => keys.find(k => k.toLowerCase().includes(term));
+
+                        // Ajuste estes termos conforme sua planilha!
+                        const dateKey = getKey('data') || getKey('date'); 
+                        const titleKey = getKey('descri') || getKey('titulo') || getKey('nome');
+                        const valueKey = getKey('valor') || getKey('amount') || getKey('preço');
+                        const catKey = getKey('categ');
+                        const typeKey = getKey('tipo'); // Receita/Despesa
+
+                        if (titleKey && valueKey) {
+                            let val = row[valueKey];
+                            if(typeof val === 'string') val = parseFloat(val.replace('R$','').replace('.','').replace(',','.').trim()); // Tenta limpar string R$
+
+                            let dateVal = row[dateKey];
+                            let finalDate = new Date().toISOString().split('T')[0]; // Hoje como fallback
+
+                            // Tratamento de Data do Excel (Número serial)
+                            if (typeof dateVal === 'number') {
+                                const dateObj = XLSX.SSF.parse_date_code(dateVal);
+                                finalDate = `${dateObj.y}-${String(dateObj.m).padStart(2,'0')}-${String(dateObj.d).padStart(2,'0')}`;
+                            } else if (typeof dateVal === 'string') {
+                                // Tenta parsing básico (ex: DD/MM/AAAA)
+                                const parts = dateVal.split('/');
+                                if(parts.length === 3) finalDate = `${parts[2]}-${parts[1]}-${parts[0]}`; 
+                            }
+
+                            // Tratamento de Tipo
+                            let typeVal = row[typeKey] ? String(row[typeKey]).toLowerCase() : 'despesa';
+                            if (typeVal.includes('rec') || typeVal.includes('entrada') || val > 0 && !typeKey) typeVal = 'receita';
+                            else typeVal = 'despesa';
+                            
+                            // Se valor vier negativo na planilha mas for despesa, converte para positivo para o sistema
+                            val = Math.abs(val);
+
+                            const newDocRef = doc(collectionRef); // Gera ID auto
+                            batch.set(newDocRef, {
+                                title: row[titleKey] || "Sem descrição",
+                                value: val || 0,
+                                date: finalDate,
+                                category: row[catKey] || "Importado",
+                                type: typeVal,
+                                uid: currentUser.uid,
+                                createdAt: Timestamp.now()
+                            });
+                            count++;
+                        }
+                    });
+
+                    if (count > 0) {
+                        await batch.commit();
+                        importStatus.textContent = "Sucesso! " + count + " importados.";
+                        importStatus.className = "text-[10px] text-center text-emerald-400 h-4";
+                        setTimeout(() => { importStatus.textContent = ""; }, 5000);
+                    } else {
+                        throw new Error("Nenhuma linha válida encontrada.");
+                    }
+
+                } catch (error) {
+                    console.error("Erro importação:", error);
+                    importStatus.textContent = "Erro: " + error.message;
+                    importStatus.className = "text-[10px] text-center text-red-400 h-4";
+                }
+                
+                // Reset input
+                fileInput.value = "";
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
 
 
         // --- 4. UI UPDATE LOGIC ---
