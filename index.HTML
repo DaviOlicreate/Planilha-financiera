@@ -322,6 +322,7 @@
                                         <th class="px-6 py-4 bg-slate-900/90">Data</th>
                                         <th class="px-6 py-4 bg-slate-900/90">Descrição</th>
                                         <th class="px-6 py-4 bg-slate-900/90">Categoria</th>
+		    <th class="px-6 py-4 bg-slate-900/90">Característica</th>
                                         <th class="px-6 py-4 bg-slate-900/90">Banco</th>
                                         <th class="px-6 py-4 bg-slate-900/90 text-right">Valor</th>
                                         <th class="px-6 py-4 bg-slate-900/90 text-center">Ações</th>
@@ -823,12 +824,11 @@ function updateInterface() {
     const receitasTable = tableData.filter(t => t.type === 'receita');
     const despesasTable = tableData.filter(t => t.type === 'despesa');
 
-    // Chamadas corrigidas conforme sua solicitação:
-    // Receitas: Mantendo o padrão de 4 colunas de dados.
+    // Receitas: 4 colunas de dados + 1 de ações = 5 colunas no total
     renderTable('tbody-receitas', receitasTable, ['date', 'title', 'bank', 'value'], 'receita');
     
-    // Despesas: Adicionada a coluna 'definition' (Característica) na ordem correta para alinhamento.
-    // Verifique se o seu HTML possui o cabeçalho <th> correspondente para "Característica".
+    // Despesas: 5 colunas de dados + 1 de ações = 6 colunas no total
+    // A ordem abaixo garante: Data, Descrição, Categoria, Característica, Banco, Valor
     renderTable('tbody-despesas', despesasTable, ['date', 'title', 'category', 'definition', 'bank', 'value'], 'despesa');
     
     document.getElementById('tab-badge-rec').textContent = receitasTable.length;
