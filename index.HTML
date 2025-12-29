@@ -1233,13 +1233,23 @@ const firebaseConfig = {
                 }
             });
 
-            // Chart A: Timeline Detail (Yellow Line)
-            // Lógica: Usa sempre o rangeData. 
-            // Se !Merge, rangeData é apenas o mês selecionado. Se Merge, rangeData é o período.
-            const timelineExpenses = rangeData.filter(t => t.type === 'despesa').sort((a,b) => new Date(a.date) - new Date(b.date));
-            const labelsLine = timelineExpenses.map(t => `${t.category} (${t.date.split('-')[2]}/${t.date.split('-')[1]})`);
-            const dataLine = timelineExpenses.map(t => t.value);
-            const totalLine = dataLine.reduce((a,b) => a+b, 0);
+// Chart A: Timeline Detail (Yellow Line)
+            // Lógica: Filtra, agrupa por categoria e soma os valores
+            const timelineExpensesRaw = rangeData.filter(t => t.type === 'despesa');
+            
+            // Agrupamento e Soma por Categoria
+            const groupedMap = timelineExpensesRaw.reduce((acc, t) => {
+                const cat = t.category || 'Outros';
+                acc[cat] = (acc[cat] || 0) + t.value;
+                return acc;
+            }, {});
+
+            // Ordenação por valor decrescente (ajuda na leitura do gráfico de linha)
+            const sortedEntries = Object.entries(groupedMap).sort((a, b) => b[1] - a[1]);
+
+            const labelsLine = sortedEntries.map(entry => entry[0]);
+            const dataLine = sortedEntries.map(entry => entry[1]);
+            const totalLine = dataLine.reduce((a, b) => a + b, 0);
 
             const fmt = new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'});
             document.getElementById('chart-timeline-total').textContent = `Total do período: ${fmt.format(totalLine)}`;
