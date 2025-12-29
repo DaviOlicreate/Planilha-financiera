@@ -823,9 +823,12 @@ function updateInterface() {
     const receitasTable = tableData.filter(t => t.type === 'receita');
     const despesasTable = tableData.filter(t => t.type === 'despesa');
 
-    // Chamadas corrigidas (removido 'definition' de despesas):
+    // Chamadas corrigidas:
+    // Receitas permanecem com as colunas padrão.
     renderTable('tbody-receitas', receitasTable, ['date', 'title', 'bank', 'value'], 'receita');
-    renderTable('tbody-despesas', despesasTable, ['date', 'title', 'category', 'bank', 'value'], 'despesa');
+    
+    // Despesas agora incluem 'definition' para mostrar se é dívida, investimento, etc.
+    renderTable('tbody-despesas', despesasTable, ['date', 'title', 'category', 'definition', 'bank', 'value'], 'despesa');
     
     document.getElementById('tab-badge-rec').textContent = receitasTable.length;
     document.getElementById('tab-badge-desp').textContent = despesasTable.length;
