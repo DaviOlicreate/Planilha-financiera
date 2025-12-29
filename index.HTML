@@ -160,6 +160,7 @@
             </div>
 
             <div class="p-4 border-t border-slate-800">
+                <!-- CORREÇÃO AQUI: onclick="logoutApp()" sem argumentos -->
                 <div class="flex items-center gap-3 justify-center lg:justify-start cursor-pointer hover:bg-slate-800 p-2 rounded-lg transition-colors" onclick="logoutApp()">
                     <img id="user-avatar" src="" class="w-8 h-8 rounded-full border border-slate-700">
                     <div class="hidden lg:block overflow-hidden">
@@ -591,14 +592,14 @@
         import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, updateDoc, doc, query, orderBy, where, Timestamp, writeBatch, getDocs, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBWA5-o7lvPv7zybt1B-k7HdKcgPNYQOEc",
-            authDomain: "planilha-financeira-fca35.firebaseapp.com",
-            projectId: "planilha-financeira-fca35",
-            storageBucket: "planilha-financeira-fca35.firebasestorage.app",
-            messagingSenderId: "768116977602",
-            appId: "1:768116977602:web:f40ceaf4e4998352ee305b"
-        };
+const firebaseConfig = {
+  apiKey: "AIzaSyBWA5-o7lvPv7zybt1B-k7HdKcgPNYQOEc",
+  authDomain: "planilha-financeira-fca35.firebaseapp.com",
+  projectId: "planilha-financeira-fca35",
+  storageBucket: "planilha-financeira-fca35.firebasestorage.app",
+  messagingSenderId: "768116977602",
+  appId: "1:768116977602:web:f40ceaf4e4998352ee305b"
+};
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -660,14 +661,8 @@
             }
         });
 
+        // CORREÇÃO: Função renomeada e usando 'auth' do escopo do módulo
         window.logoutApp = () => signOut(auth);
-
-        // --- HELPER PARA LIMPAR DATA DOS GRÁFICOS (ex: "Cirurgia (01/12)" -> "Cirurgia") ---
-        function cleanLabel(str) {
-            if(!str) return "";
-            // Pega tudo antes do primeiro espaço e parênteses
-            return str.split(' (')[0].split('(')[0].trim();
-        }
 
         // --- SETTINGS MANAGEMENT ---
         async function initSettings() {
@@ -831,8 +826,7 @@
             const despesasTable = tableData.filter(t => t.type === 'despesa');
 
             renderTable('tbody-receitas', receitasTable, ['date', 'title', 'bank', 'value'], 'receita');
-            // MODIFICAÇÃO: Ajustado a ordem das colunas para remover 'definition' da tabela (estava bagunçando o visual)
-            renderTable('tbody-despesas', despesasTable, ['date', 'title', 'category', 'bank', 'value'], 'despesa');
+            renderTable('tbody-despesas', despesasTable, ['date', 'title', 'category', 'definition', 'bank', 'value'], 'despesa');
             
             document.getElementById('tab-badge-rec').textContent = receitasTable.length;
             document.getElementById('tab-badge-desp').textContent = despesasTable.length;
@@ -1045,16 +1039,21 @@
                 }
             };
 
-            // --- Chart D: Fluxo Financeiro ---
+            // --- Chart D: Fluxo Financeiro (Barra/Linha) ---
+            // Lógica Atualizada: Se !Merge, pegar o ano inteiro. Se Merge, pegar o range.
             let flowData = rangeData;
             let flowStart = startMonth;
             let flowEnd = endMonth;
 
             if (!isMerge) {
+                // Se NÃO estiver mesclado, mostrar o ano inteiro (Jan-Dez) do ano selecionado
                 const year = startMonth.split('-')[0];
                 flowStart = `${year}-01`;
                 flowEnd = `${year}-12`;
+                
+                // Filtra da lista global de transações para pegar o ano todo
                 flowData = transactions.filter(t => t.date.startsWith(year));
+                
                 document.getElementById('title-chart-main').textContent = `Fluxo Anual (${year})`;
                 document.getElementById('subtitle-chart-main').textContent = "Janeiro a Dezembro";
             } else {
@@ -1062,19 +1061,26 @@
                 document.getElementById('subtitle-chart-main').textContent = "Intervalo Personalizado";
             }
 
+            // 1. Generate all month keys between start and end
             const monthKeys = [];
             const [startY, startM] = flowStart.split('-').map(Number);
             const [endY, endM] = flowEnd.split('-').map(Number);
+            
             let currY = startY;
             let currM = startM;
+            
             let loops = 0;
             while ((currY < endY || (currY === endY && currM <= endM)) && loops < 60) {
                 monthKeys.push(`${currY}-${String(currM).padStart(2,'0')}`);
                 currM++;
-                if (currM > 12) { currM = 1; currY++; }
+                if (currM > 12) {
+                    currM = 1;
+                    currY++;
+                }
                 loops++;
             }
 
+            // 2. Aggregate Data per Key for Flow Chart
             const monthsMap = {};
             monthKeys.forEach(k => monthsMap[k] = { expense: 0, revenue: 0 });
 
@@ -1089,6 +1095,7 @@
             const dataExp = monthKeys.map(k => monthsMap[k].expense);
             const dataInv = monthKeys.map(k => Math.max(0, monthsMap[k].revenue - monthsMap[k].expense));
             
+            // Generate friendly labels (e.g., JAN/24)
             const labelsMain = monthKeys.map(k => {
                 const [y, m] = k.split('-');
                 const monthNames = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
@@ -1096,6 +1103,7 @@
             });
 
             if(chartInstances.main) chartInstances.main.destroy();
+            
             const ctxMain = document.getElementById('chart-main').getContext('2d');
             const goldGradient = createGradient(ctxMain, 'rgba(251, 191, 36, 0.7)', 'rgba(251, 191, 36, 0.0)');
             const darkGradient = createGradient(ctxMain, 'rgba(71, 85, 105, 1)', 'rgba(30, 41, 59, 0.6)');
@@ -1116,7 +1124,9 @@
                             borderDash: [5, 5],
                             pointBackgroundColor: '#fbbf24',
                             pointBorderColor: '#fff',
+                            pointBorderWidth: 1,
                             pointRadius: 4,
+                            pointHoverRadius: 6,
                             fill: true,
                             tension: 0.4,
                             yAxisID: 'y1',
@@ -1135,26 +1145,51 @@
                     ]
                 },
                 options: {
-                    ...commonOptions,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    layout: { padding: { top: 20 } },
+                    plugins: { 
+                        legend: { 
+                            position: 'bottom',
+                            labels: { color: '#94a3b8', font: {family: 'Inter', size: 11}, usePointStyle: true, boxWidth: 8 } 
+                        },
+                        tooltip: commonOptions.plugins.tooltip
+                    },
                     scales: {
-                        y: { ...commonOptions.scales.y, position: 'left' },
-                        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#fbbf24' } },
-                        x: commonOptions.scales.x
+                        y: { 
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            grid: { color: '#334155', borderDash: [2, 4] }, 
+                            ticks: { color: '#94a3b8', callback: (val) => val.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0}) } 
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            ticks: { color: '#fbbf24', callback: (val) => val.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0}) }
+                        },
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { color: '#94a3b8' } 
+                        }
                     }
                 }
             });
 
-            // NEW Chart: Top Categories (Restored as Bar)
+            // NEW Chart: Top Categories (Restored as Bar) - ID: chart-top-cat
             const expenses = rangeData.filter(t => t.type === 'despesa');
             const catMap = {};
             expenses.forEach(t => {
-                // MODIFICAÇÃO: Aplicado cleanLabel para tirar as datas da categoria no gráfico
-                const cat = cleanLabel(t.category || 'Outros'); 
+                const cat = t.category || 'Outros'; 
                 catMap[cat] = (catMap[cat] || 0) + t.value;
             });
             const sortedCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 6);
 
             if(chartInstances.topCat) chartInstances.topCat.destroy();
+            
             const ctxTopCat = document.getElementById('chart-top-cat').getContext('2d');
             const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#64748b'];
             const gradients = colors.map(c => {
@@ -1178,18 +1213,39 @@
                         barThickness: 30
                     }]
                 },
-                options: commonOptions
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: commonOptions.plugins.tooltip
+                    },
+                    scales: {
+                        y: { 
+                            grid: { color: '#334155', borderDash: [2, 4] }, 
+                            ticks: { color: '#94a3b8', callback: (val) => val.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0}) } 
+                        },
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { color: '#94a3b8' } 
+                        }
+                    }
+                }
             });
 
-            // Chart A: Timeline Detail
+            // Chart A: Timeline Detail (Yellow Line)
+            // Lógica: Usa sempre o rangeData. 
+            // Se !Merge, rangeData é apenas o mês selecionado. Se Merge, rangeData é o período.
             const timelineExpenses = rangeData.filter(t => t.type === 'despesa').sort((a,b) => new Date(a.date) - new Date(b.date));
-            // MODIFICAÇÃO: Aplicado cleanLabel no gráfico de linha do tempo
-            const labelsLine = timelineExpenses.map(t => `${cleanLabel(t.category)} (${t.date.split('-')[2]}/${t.date.split('-')[1]})`);
+            const labelsLine = timelineExpenses.map(t => `${t.category} (${t.date.split('-')[2]}/${t.date.split('-')[1]})`);
             const dataLine = timelineExpenses.map(t => t.value);
             const totalLine = dataLine.reduce((a,b) => a+b, 0);
-            document.getElementById('chart-timeline-total').textContent = `Total do período: ${new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(totalLine)}`;
+
+            const fmt = new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'});
+            document.getElementById('chart-timeline-total').textContent = `Total do período: ${fmt.format(totalLine)}`;
 
             if(chartInstances.timeline) chartInstances.timeline.destroy();
+            
             const ctxTimeline = document.getElementById('chart-timeline').getContext('2d');
             const timelineGradient = createGradient(ctxTimeline, 'rgba(251, 191, 36, 0.5)', 'rgba(251, 191, 36, 0.0)');
 
@@ -1201,26 +1257,65 @@
                     datasets: [{
                         label: 'Valor',
                         data: dataLine,
-                        borderColor: '#facc15',
+                        borderColor: '#facc15', // Yellow-400
                         backgroundColor: timelineGradient,
                         borderWidth: 2,
                         tension: 0.4, 
                         pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#facc15',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 1,
                         fill: true
                     }]
                 },
-                options: commonOptions
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    layout: { padding: { top: 20 } },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: true,
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#cbd5e1',
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: function(context) {
+                                    return fmt.format(context.parsed.y);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            grid: { color: '#334155', borderDash: [5, 5] }, 
+                            ticks: { color: '#94a3b8', callback: (val) => val.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0}) } 
+                        },
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { color: '#94a3b8', maxRotation: 45, minRotation: 30 } 
+                        }
+                    }
+                }
             });
 
-            // Chart B: Gastos por Banco
+            // Chart B: Gastos por Banco (Período)
             const bankMap = {};
             rangeData.filter(t => t.type === 'despesa').forEach(t => {
                 const b = t.bank || 'Carteira';
                 bankMap[b] = (bankMap[b] || 0) + t.value;
             });
             const sortedBanks = Object.entries(bankMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
+
             if(chartInstances.bank) chartInstances.bank.destroy();
+            
             const ctxBank = document.getElementById('chart-bank').getContext('2d');
+            const bankGradient = createGradient(ctxBank, 'rgba(59, 130, 246, 0.8)', 'rgba(59, 130, 246, 0.1)'); // Blue
+
             chartInstances.bank = new Chart(ctxBank, {
                 type: 'bar',
                 data: {
@@ -1228,40 +1323,67 @@
                     datasets: [{
                         label: 'Total',
                         data: sortedBanks.map(x => x[1]),
-                        backgroundColor: createGradient(ctxBank, 'rgba(59, 130, 246, 0.8)', 'rgba(59, 130, 246, 0.1)'),
+                        backgroundColor: bankGradient,
+                        borderColor: 'rgba(255,255,255,0.1)',
                         borderWidth: 1,
-                        borderRadius: 4
+                        borderRadius: 4,
+                        barThickness: 20
                     }]
                 },
-                options: { ...commonOptions, indexAxis: 'y' }
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                        y: { grid: { display: false }, ticks: { color: '#cbd5e1', font: {weight: 'bold'} } }
+                    }
+                }
             });
 
-            // Chart E: Ranking de Receitas
+            // Chart E: Ranking de Receitas (Período)
+            document.getElementById('title-chart-type').textContent = "Fontes de Receita";
+            
             const recMap = {};
             rangeData.filter(t => t.type === 'receita').forEach(t => {
                 const o = t.origin || t.title || 'Diversos';
                 recMap[o] = (recMap[o] || 0) + t.value;
             });
             const sortedRec = Object.entries(recMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
+
             if(chartInstances.type) chartInstances.type.destroy();
+            
             const ctxType = document.getElementById('chart-type').getContext('2d');
+            const recGradient = createGradient(ctxType, 'rgba(16, 185, 129, 0.8)', 'rgba(16, 185, 129, 0.1)'); // Green
+
             chartInstances.type = new Chart(ctxType, {
-                type: 'bar',
+                type: 'bar', // Horizontal Bar
                 data: {
                     labels: sortedRec.map(x => x[0]),
                     datasets: [{
                         label: 'Entrada',
                         data: sortedRec.map(x => x[1]),
-                        backgroundColor: createGradient(ctxType, 'rgba(16, 185, 129, 0.8)', 'rgba(16, 185, 129, 0.1)'),
+                        backgroundColor: recGradient,
+                        borderColor: 'rgba(255,255,255,0.1)',
                         borderWidth: 1,
-                        borderRadius: 4
+                        borderRadius: 4,
+                        barThickness: 20
                     }]
                 },
-                options: { ...commonOptions, indexAxis: 'y' }
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                        y: { grid: { display: false }, ticks: { color: '#cbd5e1', font: {weight: 'bold'} } }
+                    }
+                }
             });
         }
 
-        // --- ORGANIZAÇÃO DA TABELA ---
         function renderTable(elementId, data, cols, type) {
             const tbody = document.getElementById(elementId);
             tbody.innerHTML = '';
@@ -1304,21 +1426,139 @@
             if(!item) return;
 
             openModal(item.type);
+            
             document.getElementById('form-id').value = item.id;
             document.getElementById('form-desc').value = item.title;
+            
             const valStr = (item.value * 100).toString(); 
             const inputVal = document.getElementById('form-val');
             inputVal.value = valStr; 
             formatCurrencyInput(inputVal);
+
             document.getElementById('form-date').value = item.date;
             document.getElementById('form-bank').value = item.bank;
+
             if(item.type === 'despesa') {
                 document.getElementById('form-cat').value = item.category;
                 document.getElementById('form-def').value = item.definition;
             }
+
             document.getElementById('modal-title').textContent = `Editar ${item.type === 'receita' ? 'Receita' : 'Despesa'}`;
             document.getElementById('btn-save').textContent = 'Atualizar Registro';
         }
+
+        document.getElementById('grid-search').addEventListener('input', updateInterface);
+        document.getElementById('filter-month').addEventListener('change', updateInterface);
+        document.getElementById('dash-filter-month-1').addEventListener('change', (e) => window.updateDashboardAnalytics());
+        document.getElementById('dash-filter-month-2').addEventListener('change', (e) => window.updateDashboardAnalytics());
+
+        window.clearAllData = async () => {
+            if(!confirm("CUIDADO: Isso apagará tudo!")) return;
+            const batch = writeBatch(db);
+            transactions.forEach(t => batch.delete(doc(db, "transacoes_financeiras", t.id)));
+            await batch.commit();
+        }
+
+        // --- NAVIGATION & MODALS ---
+        window.switchView = (viewName) => {
+            ['home', 'datagrid'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
+            document.getElementById(`view-${viewName}`).classList.remove('hidden');
+            
+            document.getElementById('nav-home').classList.remove('text-brand-accent', 'bg-slate-800/50');
+            document.getElementById('nav-datagrid').classList.remove('text-brand-accent', 'bg-slate-800/50');
+            
+            document.getElementById(`nav-${viewName}`).classList.add('text-brand-accent', 'bg-slate-800/50');
+            document.getElementById(`nav-${viewName}`).classList.remove('text-slate-400');
+        }
+
+        window.switchTableTab = (tab) => {
+            if(tab === 'receitas') {
+                document.getElementById('tab-content-receitas').classList.remove('hidden');
+                document.getElementById('tab-content-despesas').classList.add('hidden');
+                document.getElementById('tab-btn-receitas').classList.add('border-brand-receita', 'text-brand-receita');
+                document.getElementById('tab-btn-receitas').classList.remove('border-transparent', 'text-slate-500');
+                document.getElementById('tab-btn-despesas').classList.add('border-transparent', 'text-slate-500');
+                document.getElementById('tab-btn-despesas').classList.remove('border-brand-despesa', 'text-brand-despesa');
+            } else {
+                document.getElementById('tab-content-receitas').classList.add('hidden');
+                document.getElementById('tab-content-despesas').classList.remove('hidden');
+                document.getElementById('tab-btn-despesas').classList.add('border-brand-despesa', 'text-brand-despesa'); 
+                document.getElementById('tab-btn-despesas').classList.remove('border-transparent', 'text-slate-500');
+                document.getElementById('tab-btn-receitas').classList.add('border-transparent', 'text-slate-500');
+                document.getElementById('tab-btn-receitas').classList.remove('border-brand-receita', 'text-brand-receita');
+            }
+        }
+
+        window.openDashboardFull = () => {
+            document.getElementById('dashboard-full').classList.add('active');
+            updateInterface(); 
+        }
+        window.closeDashboardFull = () => document.getElementById('dashboard-full').classList.remove('active');
+
+        window.openModal = (type) => {
+            const modal = document.getElementById('modal');
+            if(modal) {
+                modal.classList.remove('hidden');
+                document.getElementById('form-id').value = ''; 
+                document.getElementById('form-type').value = type;
+                document.getElementById('modal-title').textContent = type === 'receita' ? 'Nova Receita' : 'Nova Despesa';
+                document.getElementById('modal-title').className = `font-display text-xl font-bold ${type === 'receita' ? 'text-brand-receita' : 'text-brand-despesa'}`;
+                
+                const btnSave = document.getElementById('btn-save');
+                btnSave.textContent = 'Salvar Registro';
+                btnSave.className = `w-full font-bold py-4 rounded-xl shadow-lg transition-all mt-4 text-white ${type === 'receita' ? 'bg-brand-receita hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-brand-despesa hover:bg-rose-600 shadow-rose-500/20'}`;
+                
+                if(type === 'receita') {
+                    document.getElementById('field-cat-container').classList.add('hidden');
+                    document.getElementById('field-def-container').classList.add('hidden');
+                } else {
+                    document.getElementById('field-cat-container').classList.remove('hidden');
+                    document.getElementById('field-def-container').classList.remove('hidden');
+                }
+                
+                if(!document.getElementById('form-id').value) {
+                    document.getElementById('form-transaction').reset();
+                    document.getElementById('form-type').value = type;
+                    document.getElementById('form-date').valueAsDate = new Date();
+                }
+            }
+        }
+        window.closeModal = (modalId) => {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        document.getElementById('form-transaction').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const type = document.getElementById('form-type').value;
+            const id = document.getElementById('form-id').value;
+
+            const valStr = document.getElementById('form-val').value;
+            const value = parseFloat(valStr.replace(/\./g, '').replace(',', '.'));
+
+            const data = {
+                uid: currentUser.uid,
+                type: type,
+                title: document.getElementById('form-desc').value,
+                value: value,
+                date: document.getElementById('form-date').value,
+                bank: document.getElementById('form-bank').value,
+            };
+
+            if(!id) data.createdAt = Timestamp.now();
+
+            if(type === 'despesa') {
+                data.category = document.getElementById('form-cat').value;
+                data.definition = document.getElementById('form-def').value;
+            } else {
+                data.origin = data.title; 
+            }
+
+            if(id) await updateDoc(doc(db, "transacoes_financeiras", id), data);
+            else await addDoc(collection(db, "transacoes_financeiras"), data);
+            
+            closeModal('modal');
+            document.getElementById('form-transaction').reset();
+        });
 
         // --- IMPORT EXCEL ---
         document.getElementById('file-upload').addEventListener('change', async (e) => {
@@ -1350,22 +1590,22 @@
                         const date = parseDate(keys['data'] || keys['dia']);
                         
                         if(val > 0 && date) {
-                            // MODIFICAÇÃO: Lógica para evitar "Sem título" quando os dados vêm trocados no Excel
-                            const descFinal = keys['descricao'] || keys['origem'] || keys['categoria'] || 'Sem título';
-                            const catFinal = keys['categoria'] || keys['despesa'] || keys['tipo'] || 'Outros';
-
                             const docData = {
                                 uid: currentUser.uid,
                                 type: type,
                                 value: val,
                                 date: date,
                                 bank: keys['banco'] || keys['instituicao bancaria'] || keys['conta'] || 'Não informado',
-                                title: descFinal,
-                                category: catFinal,
+                                title: keys['descricao'] || keys['origem'] || 'Sem título',
                                 createdAt: Timestamp.now()
                             };
-                            if(type === 'despesa') docData.definition = keys['definicao'] || keys['tipo'] || 'Outros';
-                            else docData.origin = descFinal;
+
+                            if(type === 'despesa') {
+                                docData.category = keys['categoria'] || keys['despesa'] || 'Outros';
+                                docData.definition = keys['definicao'] || keys['tipo'] || 'Outros';
+                            } else {
+                                docData.origin = keys['origem'] || keys['descricao'];
+                            }
 
                             batch.set(doc(collection(db, "transacoes_financeiras")), docData);
                             count++;
@@ -1397,93 +1637,22 @@
                 const date = new Date(Math.round((d - 25569)*86400*1000));
                 return date.toISOString().split('T')[0];
             }
-            if(typeof d === 'string' && d.includes('/')) {
+            if(d.includes('/')) {
                 const p = d.split('/');
                 if(p.length === 3) return `${p[2]}-${p[1]}-${p[0]}`;
             }
             return d;
         }
-
         function formatDate(d) {
             const p = d.split('-');
             return `${p[2]}/${p[1]}/${p[0]}`;
         }
-
-        // --- NAVIGATION & MODALS ---
-        window.switchView = (viewName) => {
-            ['home', 'datagrid'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
-            document.getElementById(`view-${viewName}`).classList.remove('hidden');
-            document.getElementById('nav-home').classList.remove('text-brand-accent', 'bg-slate-800/50');
-            document.getElementById('nav-datagrid').classList.remove('text-brand-accent', 'bg-slate-800/50');
-            document.getElementById(`nav-${viewName}`).classList.add('text-brand-accent', 'bg-slate-800/50');
-        }
-
-        window.switchTableTab = (tab) => {
-            if(tab === 'receitas') {
-                document.getElementById('tab-content-receitas').classList.remove('hidden');
-                document.getElementById('tab-content-despesas').classList.add('hidden');
-                document.getElementById('tab-btn-receitas').classList.add('border-brand-receita', 'text-brand-receita');
-                document.getElementById('tab-btn-despesas').classList.remove('border-brand-despesa', 'text-brand-despesa');
-            } else {
-                document.getElementById('tab-content-receitas').classList.add('hidden');
-                document.getElementById('tab-content-despesas').classList.remove('hidden');
-                document.getElementById('tab-btn-despesas').classList.add('border-brand-despesa', 'text-brand-despesa');
-                document.getElementById('tab-btn-receitas').classList.remove('border-brand-receita', 'text-brand-receita');
-            }
-        }
-
-        window.openDashboardFull = () => {
-            document.getElementById('dashboard-full').classList.add('active');
-            updateInterface(); 
-        }
-        window.closeDashboardFull = () => document.getElementById('dashboard-full').classList.remove('active');
-
-        window.openModal = (type) => {
-            const modal = document.getElementById('modal');
-            if(modal) {
-                modal.classList.remove('hidden');
-                document.getElementById('form-id').value = ''; 
-                document.getElementById('form-type').value = type;
-                document.getElementById('modal-title').textContent = type === 'receita' ? 'Nova Receita' : 'Nova Despesa';
-                document.getElementById('field-cat-container').classList.toggle('hidden', type === 'receita');
-                document.getElementById('field-def-container').classList.toggle('hidden', type === 'receita');
-                document.getElementById('form-transaction').reset();
-                document.getElementById('form-date').valueAsDate = new Date();
-            }
-        }
-        window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
-
-        document.getElementById('form-transaction').onsubmit = async (e) => {
-            e.preventDefault();
-            const type = document.getElementById('form-type').value;
-            const id = document.getElementById('form-id').value;
-            const valStr = document.getElementById('form-val').value;
-            const value = parseFloat(valStr.replace(/\./g, '').replace(',', '.'));
-
-            const data = {
-                uid: currentUser.uid,
-                type: type,
-                title: document.getElementById('form-desc').value,
-                value: value,
-                date: document.getElementById('form-date').value,
-                bank: document.getElementById('form-bank').value,
-            };
-
-            if(type === 'despesa') {
-                data.category = document.getElementById('form-cat').value;
-                data.definition = document.getElementById('form-def').value;
-            } else { data.origin = data.title; }
-
-            if(id) await updateDoc(doc(db, "transacoes_financeiras", id), data);
-            else { data.createdAt = Timestamp.now(); await addDoc(collection(db, "transacoes_financeiras"), data); }
-            closeModal('modal');
-        }
-
-        const today = new Date();
-        document.getElementById('current-date').textContent = today.toLocaleDateString('pt-BR', {weekday: 'long', day: 'numeric', month: 'long'});
-        document.getElementById('filter-month').value = today.toISOString().substring(0, 7);
-        document.getElementById('dash-filter-month-1').value = today.toISOString().substring(0, 7);
+        
+        const now = new Date();
+        document.getElementById('current-date').textContent = now.toLocaleDateString('pt-BR', {weekday: 'long', day: 'numeric', month: 'long'});
+        const currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        document.getElementById('filter-month').value = currentMonth;
 
     </script>
 </body>
-</html>
+</html>"
