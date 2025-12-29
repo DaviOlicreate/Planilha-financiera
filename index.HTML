@@ -807,35 +807,33 @@ const firebaseConfig = {
         }
 
         // --- DASHBOARD CORE LOGIC ---
-        function updateInterface() {
-            // Filters
-            const monthFilter = document.getElementById('filter-month').value; // Datagrid month
-            const searchFilter = document.getElementById('grid-search').value.toLowerCase();
+function updateInterface() {
+    const monthFilter = document.getElementById('filter-month').value;
+    const searchFilter = document.getElementById('grid-search').value.toLowerCase();
 
-            // 1. Update Datagrid (Uses global filter)
-            let filteredData = transactions;
-            if(monthFilter) filteredData = filteredData.filter(t => t.date.startsWith(monthFilter));
-            
-            const tableData = filteredData.filter(t => 
-                (t.title && t.title.toLowerCase().includes(searchFilter)) || 
-                (t.category && t.category.toLowerCase().includes(searchFilter)) ||
-                (t.bank && t.bank.toLowerCase().includes(searchFilter))
-            );
+    let filteredData = transactions;
+    if(monthFilter) filteredData = filteredData.filter(t => t.date.startsWith(monthFilter));
+    
+    const tableData = filteredData.filter(t => 
+        (t.title && t.title.toLowerCase().includes(searchFilter)) || 
+        (t.category && t.category.toLowerCase().includes(searchFilter)) ||
+        (t.bank && t.bank.toLowerCase().includes(searchFilter))
+    );
 
-            const receitasTable = tableData.filter(t => t.type === 'receita');
-            const despesasTable = tableData.filter(t => t.type === 'despesa');
+    const receitasTable = tableData.filter(t => t.type === 'receita');
+    const despesasTable = tableData.filter(t => t.type === 'despesa');
 
-            renderTable('tbody-receitas', receitasTable, ['date', 'title', 'bank', 'value'], 'receita');
-            renderTable('tbody-despesas', despesasTable, ['date', 'title', 'category', 'definition', 'bank', 'value'], 'despesa');
-            
-            document.getElementById('tab-badge-rec').textContent = receitasTable.length;
-            document.getElementById('tab-badge-desp').textContent = despesasTable.length;
+    // Chamadas corrigidas (removido 'definition' de despesas):
+    renderTable('tbody-receitas', receitasTable, ['date', 'title', 'bank', 'value'], 'receita');
+    renderTable('tbody-despesas', despesasTable, ['date', 'title', 'category', 'bank', 'value'], 'despesa');
+    
+    document.getElementById('tab-badge-rec').textContent = receitasTable.length;
+    document.getElementById('tab-badge-desp').textContent = despesasTable.length;
 
-            // 2. Update Dashboard Analytical (Uses specific dashboard filter)
-            if(document.getElementById('dashboard-full').style.display !== 'none' || document.getElementById('dashboard-full').classList.contains('active')) {
-                window.updateDashboardAnalytics();
-            }
-        }
+    if(document.getElementById('dashboard-full').style.display !== 'none' || document.getElementById('dashboard-full').classList.contains('active')) {
+        window.updateDashboardAnalytics();
+    }
+}
 
         window.toggleMerge = () => {
             const btn = document.getElementById('btn-merge');
