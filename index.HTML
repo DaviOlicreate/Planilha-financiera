@@ -662,6 +662,13 @@
 
         window.logoutApp = () => signOut(auth);
 
+        // --- HELPER PARA LIMPAR DATA DOS GRÁFICOS (ex: "Cirurgia (01/12)" -> "Cirurgia") ---
+        function cleanLabel(str) {
+            if(!str) return "";
+            // Pega tudo antes do primeiro espaço e parênteses
+            return str.split(' (')[0].split('(')[0].trim();
+        }
+
         // --- SETTINGS MANAGEMENT ---
         async function initSettings() {
             if(!currentUser) return;
@@ -679,6 +686,7 @@
             }
             updateDropdowns();
             
+            // Populate Goal Inputs
             const expenseInput = document.getElementById('setting-goal-expense');
             const savingsInput = document.getElementById('setting-goal-savings');
             if(expenseInput) expenseInput.value = userSettings.goalExpense;
@@ -693,7 +701,7 @@
             await setDoc(doc(db, "user_settings", currentUser.uid), userSettings, {merge: true});
             updateDropdowns();
             renderSettingsList();
-            updateInterface();
+            updateInterface(); // Refresh dashboard with new goals
         }
 
         window.openSettings = () => {
@@ -776,13 +784,6 @@
             });
         }
 
-        // --- HELPER PARA LIMPAR LABELS (Retirar datas entre parênteses) ---
-        function cleanLabel(label) {
-            if (!label) return "";
-            // Remove qualquer conteúdo entre parênteses, como (01/12)
-            return label.split(' (')[0].split('(')[0].trim();
-        }
-
         // --- DATA LOAD ---
         function loadData() {
             const q = query(collection(db, "transacoes_financeiras"), orderBy("date", "desc"));
@@ -812,9 +813,11 @@
 
         // --- DASHBOARD CORE LOGIC ---
         function updateInterface() {
-            const monthFilter = document.getElementById('filter-month').value;
+            // Filters
+            const monthFilter = document.getElementById('filter-month').value; // Datagrid month
             const searchFilter = document.getElementById('grid-search').value.toLowerCase();
 
+            // 1. Update Datagrid (Uses global filter)
             let filteredData = transactions;
             if(monthFilter) filteredData = filteredData.filter(t => t.date.startsWith(monthFilter));
             
@@ -828,12 +831,14 @@
             const despesasTable = tableData.filter(t => t.type === 'despesa');
 
             renderTable('tbody-receitas', receitasTable, ['date', 'title', 'bank', 'value'], 'receita');
+            // MODIFICAÇÃO: Ajustado a ordem das colunas para remover 'definition' da tabela (estava bagunçando o visual)
             renderTable('tbody-despesas', despesasTable, ['date', 'title', 'category', 'bank', 'value'], 'despesa');
             
             document.getElementById('tab-badge-rec').textContent = receitasTable.length;
             document.getElementById('tab-badge-desp').textContent = despesasTable.length;
 
-            if(document.getElementById('dashboard-full').classList.contains('active')) {
+            // 2. Update Dashboard Analytical (Uses specific dashboard filter)
+            if(document.getElementById('dashboard-full').style.display !== 'none' || document.getElementById('dashboard-full').classList.contains('active')) {
                 window.updateDashboardAnalytics();
             }
         }
@@ -846,18 +851,23 @@
             if(isHidden) {
                 container2.classList.remove('hidden');
                 btn.classList.add('text-brand-accent', 'bg-white/10');
+                btn.classList.remove('text-slate-500');
             } else {
                 container2.classList.add('hidden');
                 btn.classList.remove('text-brand-accent', 'bg-white/10');
+                btn.classList.add('text-slate-500');
             }
             window.updateDashboardAnalytics();
         }
 
         window.updateDashboardAnalytics = () => {
+            // Check state
             const isMerge = !document.getElementById('container-month-2').classList.contains('hidden');
+            
             let startMonth = document.getElementById('dash-filter-month-1').value;
             let endMonth = isMerge ? document.getElementById('dash-filter-month-2').value : startMonth;
 
+            // Defaults if empty
             const now = new Date();
             const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 
@@ -865,27 +875,40 @@
                 startMonth = currentMonthStr;
                 document.getElementById('dash-filter-month-1').value = startMonth;
             }
-            if(isMerge && !endMonth) endMonth = startMonth;
-            if(!isMerge) endMonth = startMonth;
+            // If merge is ON but no date selected, default to startMonth
+            if(isMerge && !endMonth) {
+                endMonth = startMonth;
+            }
+            // If merge is OFF, force end = start
+            if(!isMerge) {
+                endMonth = startMonth;
+            }
 
-            if(startMonth > endMonth) [startMonth, endMonth] = [endMonth, startMonth];
+            // Swap if start > end to prevent bugs
+            if(startMonth > endMonth) {
+                [startMonth, endMonth] = [endMonth, startMonth];
+            }
             
             const fmtMoney = (v) => new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(v);
 
+            // Filter by Range (Inclusive)
             const rangeData = transactions.filter(t => {
                 const tMonth = t.date.substring(0, 7);
                 return tMonth >= startMonth && tMonth <= endMonth;
             });
 
+            // KPIs Calculation (Sum of entire range)
             const totalRec = rangeData.filter(t => t.type === 'receita').reduce((sum, t) => sum + t.value, 0);
             const valExp = rangeData.filter(t => t.type === 'despesa').reduce((sum, t) => sum + t.value, 0);
             const balance = totalRec - valExp;
+            const valInvest = balance; 
 
+            // Update DOM KPIs
             document.getElementById('dash-rec').textContent = fmtMoney(totalRec);
             document.getElementById('dash-desp').textContent = fmtMoney(valExp);
             document.getElementById('dash-saldo').textContent = fmtMoney(balance);
 
-            // KPIs
+            // --- 1. Despesas Card Details ---
             const kpiStatus = document.getElementById('kpi-despesa-status');
             const expenseLimitPercent = userSettings.goalExpense || 80;
             const expenseTargetValue = totalRec > 0 ? totalRec * (expenseLimitPercent / 100) : 0;
@@ -895,11 +918,14 @@
             let iconClass = 'fa-check';
 
             if (valExp > expenseTargetValue) {
-                expenseColorClass = 'text-brand-despesa'; iconClass = 'fa-triangle-exclamation';
+                expenseColorClass = 'text-brand-despesa'; 
+                iconClass = 'fa-triangle-exclamation';
             } else if (valExp > expenseTargetValue * 0.9) {
-                expenseColorClass = 'text-brand-warning'; iconClass = 'fa-circle-exclamation';
+                expenseColorClass = 'text-brand-warning'; 
+                iconClass = 'fa-circle-exclamation';
             }
 
+            // HTML injection for Despesas
             kpiStatus.innerHTML = `
                 <div class="flex flex-col w-full mt-2">
                     <div class="flex justify-between items-center text-[10px] uppercase tracking-wider text-slate-400 mb-1">
@@ -915,17 +941,25 @@
                     </div>
                 </div>
             `;
+            document.getElementById('card-despesa-kpi').className = "glass p-6 rounded-3xl relative overflow-hidden border-transparent transition-all";
 
-            // Circle Progress
+            // --- 2. Investimentos (Circle) Card Details ---
             const savingsGoalPercent = userSettings.goalSavings || 20;
             const savingsTargetValue = totalRec > 0 ? totalRec * (savingsGoalPercent / 100) : 0;
-            const savingsActualPercent = savingsTargetValue > 0 ? (balance / savingsTargetValue) * 100 : 0;
+            const savingsActualPercent = savingsTargetValue > 0 ? (valInvest / savingsTargetValue) * 100 : 0;
+            
             const circle = document.getElementById('circle-progress');
             const radius = circle.r.baseVal.value;
             const circumference = radius * 2 * Math.PI;
             const visualPercent = Math.max(0, Math.min(savingsActualPercent, 100)); 
             const offset = circumference - (visualPercent / 100) * circumference;
+            
             circle.style.strokeDashoffset = offset;
+            
+            if(savingsActualPercent >= 100) circle.style.stroke = '#10b981'; 
+            else if(savingsActualPercent >= 50) circle.style.stroke = '#3b82f6'; 
+            else circle.style.stroke = '#f59e0b'; 
+
             document.getElementById('dash-eco-perc').textContent = `${savingsActualPercent.toFixed(1)}%`;
 
             const invLabel = document.getElementById('label-inv-goal');
@@ -937,11 +971,12 @@
                     </div>
                     <div class="flex justify-between w-full text-[10px] font-bold">
                         <span class="text-slate-500">Realizado</span>
-                        <span class="${savingsActualPercent >= 100 ? 'text-brand-receita' : 'text-brand-accent'}">${fmtMoney(balance)}</span>
+                        <span class="${savingsActualPercent >= 100 ? 'text-brand-receita' : 'text-brand-accent'}">${fmtMoney(valInvest)}</span>
                     </div>
                 </div>
             `;
 
+            // --- CHARTS UPDATE ---
             updateCharts(rangeData, startMonth, endMonth);
         }
 
@@ -949,34 +984,101 @@
             const isMerge = !document.getElementById('container-month-2').classList.contains('hidden');
             
             const commonOptions = {
-                responsive: true, maintainAspectRatio: false,
+                responsive: true, 
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
                 plugins: { 
                     legend: { labels: { color: '#94a3b8', font: {family: 'Inter'} } },
                     tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 10,
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#cbd5e1',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        padding: 10,
                         callbacks: {
-                            label: (ctx) => `${ctx.dataset.label}: ${new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(ctx.parsed.y)}`
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed.y !== null) {
+                                    label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed.y);
+                                }
+                                return label;
+                            }
                         }
                     }
                 },
                 scales: {
-                    y: { grid: { color: '#334155', borderDash:[2,4] }, ticks: { color: '#94a3b8' } },
-                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    y: { 
+                        grid: { color: '#334155', borderDash: [2, 4] }, 
+                        ticks: { color: '#94a3b8', callback: (val) => val.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0}) } 
+                    },
+                    x: { 
+                        grid: { display: false }, 
+                        ticks: { color: '#94a3b8' } 
+                    }
                 }
             };
 
-            // Fluxo Financeiro (Main Chart)
-            const monthKeys = [];
-            const [startY, startM] = startMonth.split('-').map(Number);
-            const [endY, endM] = endMonth.split('-').map(Number);
-            let currY = startY, currM = startM;
-            while (currY < endY || (currY === endY && currM <= endM)) {
-                monthKeys.push(`${currY}-${String(currM).padStart(2,'0')}`);
-                currM++; if (currM > 12) { currM = 1; currY++; }
+            const datalabelsPlugin = {
+                id: 'datalabels',
+                afterDatasetsDraw(chart, args, options) {
+                    const { ctx } = chart;
+                    ctx.save();
+                    chart.data.datasets.forEach((dataset, i) => {
+                        const meta = chart.getDatasetMeta(i);
+                        meta.data.forEach((element, index) => {
+                            if (!element.hidden) {
+                                const data = dataset.data[index];
+                                if(data !== null && data !== undefined && data !== 0) { 
+                                    const valueStr = new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits: 0}).format(data);
+                                    ctx.font = 'bold 9px Inter';
+                                    ctx.fillStyle = '#cbd5e1'; 
+                                    ctx.textAlign = 'center';
+                                    ctx.textBaseline = 'bottom';
+                                    ctx.fillText(valueStr, element.x, element.y - 8);
+                                }
+                            }
+                        });
+                    });
+                    ctx.restore();
+                }
+            };
+
+            // --- Chart D: Fluxo Financeiro ---
+            let flowData = rangeData;
+            let flowStart = startMonth;
+            let flowEnd = endMonth;
+
+            if (!isMerge) {
+                const year = startMonth.split('-')[0];
+                flowStart = `${year}-01`;
+                flowEnd = `${year}-12`;
+                flowData = transactions.filter(t => t.date.startsWith(year));
+                document.getElementById('title-chart-main').textContent = `Fluxo Anual (${year})`;
+                document.getElementById('subtitle-chart-main').textContent = "Janeiro a Dezembro";
+            } else {
+                document.getElementById('title-chart-main').textContent = "Fluxo do Período";
+                document.getElementById('subtitle-chart-main').textContent = "Intervalo Personalizado";
             }
 
-            const monthsMap = {}; monthKeys.forEach(k => monthsMap[k] = { expense: 0, revenue: 0 });
-            rangeData.forEach(t => {
+            const monthKeys = [];
+            const [startY, startM] = flowStart.split('-').map(Number);
+            const [endY, endM] = flowEnd.split('-').map(Number);
+            let currY = startY;
+            let currM = startM;
+            let loops = 0;
+            while ((currY < endY || (currY === endY && currM <= endM)) && loops < 60) {
+                monthKeys.push(`${currY}-${String(currM).padStart(2,'0')}`);
+                currM++;
+                if (currM > 12) { currM = 1; currY++; }
+                loops++;
+            }
+
+            const monthsMap = {};
+            monthKeys.forEach(k => monthsMap[k] = { expense: 0, revenue: 0 });
+
+            flowData.forEach(t => {
                 const k = t.date.substring(0, 7);
                 if(monthsMap[k]) {
                     if(t.type === 'despesa') monthsMap[k].expense += t.value;
@@ -984,6 +1086,9 @@
                 }
             });
 
+            const dataExp = monthKeys.map(k => monthsMap[k].expense);
+            const dataInv = monthKeys.map(k => Math.max(0, monthsMap[k].revenue - monthsMap[k].expense));
+            
             const labelsMain = monthKeys.map(k => {
                 const [y, m] = k.split('-');
                 const monthNames = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
@@ -991,78 +1096,166 @@
             });
 
             if(chartInstances.main) chartInstances.main.destroy();
-            chartInstances.main = new Chart('chart-main', {
+            const ctxMain = document.getElementById('chart-main').getContext('2d');
+            const goldGradient = createGradient(ctxMain, 'rgba(251, 191, 36, 0.7)', 'rgba(251, 191, 36, 0.0)');
+            const darkGradient = createGradient(ctxMain, 'rgba(71, 85, 105, 1)', 'rgba(30, 41, 59, 0.6)');
+
+            chartInstances.main = new Chart(ctxMain, {
                 type: 'bar',
+                plugins: [datalabelsPlugin],
                 data: {
                     labels: labelsMain,
                     datasets: [
-                        { label: 'Entradas', data: monthKeys.map(k => monthsMap[k].revenue), backgroundColor: '#10b981' },
-                        { label: 'Saídas', data: monthKeys.map(k => monthsMap[k].expense), backgroundColor: '#ef4444' }
+                        {
+                            label: 'Saldo/Invest.',
+                            data: dataInv,
+                            type: 'line',
+                            borderColor: '#fbbf24',
+                            backgroundColor: goldGradient,
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointBackgroundColor: '#fbbf24',
+                            pointBorderColor: '#fff',
+                            pointRadius: 4,
+                            fill: true,
+                            tension: 0.4,
+                            yAxisID: 'y1',
+                            order: 1
+                        },
+                        {
+                            label: 'Despesas',
+                            data: dataExp,
+                            backgroundColor: darkGradient,
+                            borderColor: 'rgba(255,255,255,0.2)',
+                            borderWidth: 1,
+                            borderRadius: 2, 
+                            yAxisID: 'y',
+                            order: 2
+                        }
                     ]
                 },
-                options: commonOptions
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        y: { ...commonOptions.scales.y, position: 'left' },
+                        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#fbbf24' } },
+                        x: commonOptions.scales.x
+                    }
+                }
             });
 
-            // Top Categorias (Bar Chart) - AQUI LIMPAMOS O NOME
+            // NEW Chart: Top Categories (Restored as Bar)
             const expenses = rangeData.filter(t => t.type === 'despesa');
             const catMap = {};
             expenses.forEach(t => {
-                // MODIFICAÇÃO: Usamos a função cleanLabel para remover datas (01/12) das categorias no gráfico
-                const label = cleanLabel(t.category || t.title || 'Outros');
-                catMap[label] = (catMap[label] || 0) + t.value;
+                // MODIFICAÇÃO: Aplicado cleanLabel para tirar as datas da categoria no gráfico
+                const cat = cleanLabel(t.category || 'Outros'); 
+                catMap[cat] = (catMap[cat] || 0) + t.value;
             });
             const sortedCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 6);
 
             if(chartInstances.topCat) chartInstances.topCat.destroy();
-            chartInstances.topCat = new Chart('chart-top-cat', {
+            const ctxTopCat = document.getElementById('chart-top-cat').getContext('2d');
+            const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#64748b'];
+            const gradients = colors.map(c => {
+                const grad = ctxTopCat.createLinearGradient(0, 0, 0, 300);
+                grad.addColorStop(0, c); 
+                grad.addColorStop(1, c + '1A'); 
+                return grad;
+            });
+
+            chartInstances.topCat = new Chart(ctxTopCat, {
                 type: 'bar',
                 data: {
                     labels: sortedCats.map(x => x[0]),
-                    datasets: [{ label: 'Gasto', data: sortedCats.map(x => x[1]), backgroundColor: '#3b82f6', borderRadius: 4 }]
+                    datasets: [{
+                        label: 'Gasto',
+                        data: sortedCats.map(x => x[1]),
+                        backgroundColor: gradients,
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        barThickness: 30
+                    }]
                 },
                 options: commonOptions
             });
 
-            // Timeline Expenses
+            // Chart A: Timeline Detail
             const timelineExpenses = rangeData.filter(t => t.type === 'despesa').sort((a,b) => new Date(a.date) - new Date(b.date));
+            // MODIFICAÇÃO: Aplicado cleanLabel no gráfico de linha do tempo
+            const labelsLine = timelineExpenses.map(t => `${cleanLabel(t.category)} (${t.date.split('-')[2]}/${t.date.split('-')[1]})`);
+            const dataLine = timelineExpenses.map(t => t.value);
+            const totalLine = dataLine.reduce((a,b) => a+b, 0);
+            document.getElementById('chart-timeline-total').textContent = `Total do período: ${new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(totalLine)}`;
+
             if(chartInstances.timeline) chartInstances.timeline.destroy();
-            chartInstances.timeline = new Chart('chart-timeline', {
+            const ctxTimeline = document.getElementById('chart-timeline').getContext('2d');
+            const timelineGradient = createGradient(ctxTimeline, 'rgba(251, 191, 36, 0.5)', 'rgba(251, 191, 36, 0.0)');
+
+            chartInstances.timeline = new Chart(ctxTimeline, {
                 type: 'line',
+                plugins: [datalabelsPlugin], 
                 data: {
-                    labels: timelineExpenses.map(t => `${cleanLabel(t.category)} (${t.date.split('-')[2]}/${t.date.split('-')[1]})`),
-                    datasets: [{ label: 'Valor', data: timelineExpenses.map(t => t.value), borderColor: '#facc15', tension: 0.4, fill: true, backgroundColor: 'rgba(250,204,21,0.1)' }]
+                    labels: labelsLine,
+                    datasets: [{
+                        label: 'Valor',
+                        data: dataLine,
+                        borderColor: '#facc15',
+                        backgroundColor: timelineGradient,
+                        borderWidth: 2,
+                        tension: 0.4, 
+                        pointRadius: 4,
+                        fill: true
+                    }]
                 },
                 options: commonOptions
             });
 
-            // Banks
+            // Chart B: Gastos por Banco
             const bankMap = {};
             rangeData.filter(t => t.type === 'despesa').forEach(t => {
-                const b = t.bank || 'Carteira'; bankMap[b] = (bankMap[b] || 0) + t.value;
+                const b = t.bank || 'Carteira';
+                bankMap[b] = (bankMap[b] || 0) + t.value;
             });
             const sortedBanks = Object.entries(bankMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
             if(chartInstances.bank) chartInstances.bank.destroy();
-            chartInstances.bank = new Chart('chart-bank', {
+            const ctxBank = document.getElementById('chart-bank').getContext('2d');
+            chartInstances.bank = new Chart(ctxBank, {
                 type: 'bar',
                 data: {
                     labels: sortedBanks.map(x => x[0]),
-                    datasets: [{ label: 'Total', data: sortedBanks.map(x => x[1]), backgroundColor: '#3b82f6' }]
+                    datasets: [{
+                        label: 'Total',
+                        data: sortedBanks.map(x => x[1]),
+                        backgroundColor: createGradient(ctxBank, 'rgba(59, 130, 246, 0.8)', 'rgba(59, 130, 246, 0.1)'),
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
                 },
                 options: { ...commonOptions, indexAxis: 'y' }
             });
 
-            // Revenue Sources
+            // Chart E: Ranking de Receitas
             const recMap = {};
             rangeData.filter(t => t.type === 'receita').forEach(t => {
-                const o = t.origin || t.title || 'Diversos'; recMap[o] = (recMap[o] || 0) + t.value;
+                const o = t.origin || t.title || 'Diversos';
+                recMap[o] = (recMap[o] || 0) + t.value;
             });
             const sortedRec = Object.entries(recMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
             if(chartInstances.type) chartInstances.type.destroy();
-            chartInstances.type = new Chart('chart-type', {
+            const ctxType = document.getElementById('chart-type').getContext('2d');
+            chartInstances.type = new Chart(ctxType, {
                 type: 'bar',
                 data: {
                     labels: sortedRec.map(x => x[0]),
-                    datasets: [{ label: 'Entrada', data: sortedRec.map(x => x[1]), backgroundColor: '#10b981' }]
+                    datasets: [{
+                        label: 'Entrada',
+                        data: sortedRec.map(x => x[1]),
+                        backgroundColor: createGradient(ctxType, 'rgba(16, 185, 129, 0.8)', 'rgba(16, 185, 129, 0.1)'),
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
                 },
                 options: { ...commonOptions, indexAxis: 'y' }
             });
@@ -1079,26 +1272,22 @@
                 
                 let html = '';
                 cols.forEach(col => {
-                    if(col === 'date') html += `<td class="px-6 py-4 whitespace-nowrap font-mono text-xs text-slate-500">${t.date.split('-').reverse().join('/')}</td>`;
+                    if(col === 'date') html += `<td class="px-6 py-4 whitespace-nowrap font-mono text-xs text-slate-500">${formatDate(t.date)}</td>`;
                     else if(col === 'value') {
                         const color = type === 'receita' ? 'text-brand-receita' : 'text-brand-despesa';
                         const sign = type === 'receita' ? '+' : '-';
-                        html += `<td class="px-6 py-4 text-right font-bold ${color}">${sign} ${t.value.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td>`;
+                        const formattedValue = t.value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        html += `<td class="px-6 py-4 text-right font-bold ${color}">${sign} ${formattedValue}</td>`;
                     }
-                    else if(col === 'category') {
-                        // Badge para categoria (O "Grupo" do gasto)
-                        html += `<td class="px-6 py-4"><span class="bg-slate-800 border border-slate-700 text-[10px] px-2 py-1 rounded text-slate-400 font-bold uppercase">${t[col] || 'Geral'}</span></td>`;
+                    else if(col === 'category' || col === 'definition') {
+                        html += `<td class="px-6 py-4"><span class="bg-slate-800 border border-slate-700 text-xs px-2 py-1 rounded text-slate-300">${t[col] || '-'}</span></td>`;
                     }
-                    else if(col === 'title') {
-                        // MODIFICAÇÃO: Garante que o nome do item seja exibido, mesmo que venha do Excel na coluna categoria
-                        html += `<td class="px-6 py-4 font-bold text-slate-200">${t[col] || 'Sem título'}</td>`;
-                    }
-                    else html += `<td class="px-6 py-4 text-slate-400">${t[col] || '-'}</td>`;
+                    else html += `<td class="px-6 py-4 font-medium text-slate-300">${t[col] || '-'}</td>`;
                 });
 
                 html += `<td class="px-6 py-4 text-center">
-                    <button onclick="editItem('${t.id}')" class="text-slate-500 hover:text-brand-accent mx-2"><i class="fa-solid fa-pencil"></i></button>
-                    <button onclick="deleteItem('${t.id}')" class="text-slate-500 hover:text-brand-despesa"><i class="fa-solid fa-trash"></i></button>
+                    <button onclick="editItem('${t.id}')" class="text-slate-500 hover:text-brand-accent transition-colors mr-3" title="Editar"><i class="fa-solid fa-pencil"></i></button>
+                    <button onclick="deleteItem('${t.id}')" class="text-slate-600 hover:text-brand-despesa transition-colors" title="Excluir"><i class="fa-solid fa-trash"></i></button>
                 </td>`;
 
                 tr.innerHTML = html;
@@ -1113,16 +1302,22 @@
         window.editItem = (id) => {
             const item = transactions.find(t => t.id === id);
             if(!item) return;
+
             openModal(item.type);
             document.getElementById('form-id').value = item.id;
             document.getElementById('form-desc').value = item.title;
-            document.getElementById('form-val').value = item.value.toLocaleString('pt-BR', {minimumFractionDigits:2});
+            const valStr = (item.value * 100).toString(); 
+            const inputVal = document.getElementById('form-val');
+            inputVal.value = valStr; 
+            formatCurrencyInput(inputVal);
             document.getElementById('form-date').value = item.date;
             document.getElementById('form-bank').value = item.bank;
             if(item.type === 'despesa') {
                 document.getElementById('form-cat').value = item.category;
                 document.getElementById('form-def').value = item.definition;
             }
+            document.getElementById('modal-title').textContent = `Editar ${item.type === 'receita' ? 'Receita' : 'Despesa'}`;
+            document.getElementById('btn-save').textContent = 'Atualizar Registro';
         }
 
         // --- IMPORT EXCEL ---
@@ -1130,47 +1325,57 @@
             const file = e.target.files[0];
             if(!file) return;
             const status = document.getElementById('import-status');
-            status.textContent = "Lendo arquivo...";
-            
+            status.textContent = "Processando...";
+            status.className = "text-xs text-brand-accent mt-1 animate-pulse";
+
             const reader = new FileReader();
             reader.onload = async (evt) => {
                 const workbook = XLSX.read(evt.target.result, {type: 'array'});
                 const batch = writeBatch(db);
                 let count = 0;
 
-                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                rows.forEach(row => {
-                    const keys = Object.keys(row).reduce((acc, k) => { 
-                        const cleanKey = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                        acc[cleanKey] = row[k]; 
-                        return acc; 
-                    }, {});
+                workbook.SheetNames.forEach(sheetName => {
+                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                    rows.forEach(row => {
+                        const keys = Object.keys(row).reduce((acc, k) => { 
+                            const cleanKey = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                            acc[cleanKey] = row[k]; 
+                            return acc; 
+                        }, {});
 
-                    let val = parseValue(keys['valor'] || keys['total'] || keys['quantia']);
-                    let date = parseDate(keys['data'] || keys['dia']);
-                    
-                    if(val > 0 && date) {
-                        // MODIFICAÇÃO: Lógica inteligente para organizar os dados bagunçados do Excel
-                        // Se a coluna descrição estiver vazia mas tivermos dados em categoria, usamos categoria como título.
-                        const descFinal = keys['descricao'] || keys['item'] || keys['categoria'] || 'Sem título';
-                        const catFinal = keys['categoria'] || keys['grupo'] || keys['tipo'] || 'Outros';
+                        let type = 'despesa';
+                        if(keys['origem'] || sheetName.toLowerCase().includes('receita')) type = 'receita';
 
-                        const docData = {
-                            uid: currentUser.uid,
-                            type: (keys['tipo']?.toLowerCase().includes('receita') || keys['origem']) ? 'receita' : 'despesa',
-                            value: val,
-                            date: date,
-                            bank: keys['banco'] || keys['conta'] || 'Não informado',
-                            title: descFinal,
-                            category: catFinal,
-                            createdAt: Timestamp.now()
-                        };
-                        batch.set(doc(collection(db, "transacoes_financeiras")), docData);
-                        count++;
-                    }
+                        const val = parseValue(keys['valor'] || keys['quantia'] || keys['total'] || keys['saida'] || keys['entrada']);
+                        const date = parseDate(keys['data'] || keys['dia']);
+                        
+                        if(val > 0 && date) {
+                            // MODIFICAÇÃO: Lógica para evitar "Sem título" quando os dados vêm trocados no Excel
+                            const descFinal = keys['descricao'] || keys['origem'] || keys['categoria'] || 'Sem título';
+                            const catFinal = keys['categoria'] || keys['despesa'] || keys['tipo'] || 'Outros';
+
+                            const docData = {
+                                uid: currentUser.uid,
+                                type: type,
+                                value: val,
+                                date: date,
+                                bank: keys['banco'] || keys['instituicao bancaria'] || keys['conta'] || 'Não informado',
+                                title: descFinal,
+                                category: catFinal,
+                                createdAt: Timestamp.now()
+                            };
+                            if(type === 'despesa') docData.definition = keys['definicao'] || keys['tipo'] || 'Outros';
+                            else docData.origin = descFinal;
+
+                            batch.set(doc(collection(db, "transacoes_financeiras")), docData);
+                            count++;
+                        }
+                    });
                 });
+
                 if(count > 0) await batch.commit();
                 status.textContent = `${count} itens importados!`;
+                status.className = "text-xs text-brand-receita mt-1";
                 setTimeout(() => status.textContent = "Clique para carregar planilha", 3000);
             };
             reader.readAsArrayBuffer(file);
@@ -1179,63 +1384,98 @@
         function parseValue(v) {
             if (typeof v === 'number') return v;
             if (!v) return 0;
-            let str = v.toString().replace(/[R$\s\.]/g, '').replace(',', '.');
-            return parseFloat(str) || 0;
+            let str = v.toString().trim();
+            if (str.startsWith('(') && str.endsWith(')')) str = '-' + str.slice(1, -1);
+            str = str.replace(/[R$\s\.]/g, '').replace(',', '.');
+            const parsed = parseFloat(str);
+            return isNaN(parsed) ? 0 : parsed;
         }
 
         function parseDate(d) {
             if(!d) return new Date().toISOString().split('T')[0];
-            if(typeof d === 'number') return new Date((d - 25569) * 86400 * 1000).toISOString().split('T')[0];
-            if(d.includes('/')) {
+            if(typeof d === 'number') {
+                const date = new Date(Math.round((d - 25569)*86400*1000));
+                return date.toISOString().split('T')[0];
+            }
+            if(typeof d === 'string' && d.includes('/')) {
                 const p = d.split('/');
                 if(p.length === 3) return `${p[2]}-${p[1]}-${p[0]}`;
             }
             return d;
         }
 
+        function formatDate(d) {
+            const p = d.split('-');
+            return `${p[2]}/${p[1]}/${p[0]}`;
+        }
+
         // --- NAVIGATION & MODALS ---
         window.switchView = (viewName) => {
             ['home', 'datagrid'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
             document.getElementById(`view-${viewName}`).classList.remove('hidden');
-            document.getElementById('nav-home').classList.toggle('text-brand-accent', viewName==='home');
-            document.getElementById('nav-datagrid').classList.toggle('text-brand-accent', viewName==='datagrid');
+            document.getElementById('nav-home').classList.remove('text-brand-accent', 'bg-slate-800/50');
+            document.getElementById('nav-datagrid').classList.remove('text-brand-accent', 'bg-slate-800/50');
+            document.getElementById(`nav-${viewName}`).classList.add('text-brand-accent', 'bg-slate-800/50');
         }
 
         window.switchTableTab = (tab) => {
-            document.getElementById('tab-content-receitas').classList.toggle('hidden', tab !== 'receitas');
-            document.getElementById('tab-content-despesas').classList.toggle('hidden', tab !== 'despesas');
+            if(tab === 'receitas') {
+                document.getElementById('tab-content-receitas').classList.remove('hidden');
+                document.getElementById('tab-content-despesas').classList.add('hidden');
+                document.getElementById('tab-btn-receitas').classList.add('border-brand-receita', 'text-brand-receita');
+                document.getElementById('tab-btn-despesas').classList.remove('border-brand-despesa', 'text-brand-despesa');
+            } else {
+                document.getElementById('tab-content-receitas').classList.add('hidden');
+                document.getElementById('tab-content-despesas').classList.remove('hidden');
+                document.getElementById('tab-btn-despesas').classList.add('border-brand-despesa', 'text-brand-despesa');
+                document.getElementById('tab-btn-receitas').classList.remove('border-brand-receita', 'text-brand-receita');
+            }
         }
 
         window.openDashboardFull = () => {
             document.getElementById('dashboard-full').classList.add('active');
-            updateDashboardAnalytics();
+            updateInterface(); 
         }
         window.closeDashboardFull = () => document.getElementById('dashboard-full').classList.remove('active');
 
         window.openModal = (type) => {
-            document.getElementById('modal').classList.remove('hidden');
-            document.getElementById('form-type').value = type;
-            document.getElementById('field-cat-container').classList.toggle('hidden', type === 'receita');
-            document.getElementById('form-transaction').reset();
-            document.getElementById('form-date').valueAsDate = new Date();
+            const modal = document.getElementById('modal');
+            if(modal) {
+                modal.classList.remove('hidden');
+                document.getElementById('form-id').value = ''; 
+                document.getElementById('form-type').value = type;
+                document.getElementById('modal-title').textContent = type === 'receita' ? 'Nova Receita' : 'Nova Despesa';
+                document.getElementById('field-cat-container').classList.toggle('hidden', type === 'receita');
+                document.getElementById('field-def-container').classList.toggle('hidden', type === 'receita');
+                document.getElementById('form-transaction').reset();
+                document.getElementById('form-date').valueAsDate = new Date();
+            }
         }
         window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
 
         document.getElementById('form-transaction').onsubmit = async (e) => {
             e.preventDefault();
-            const val = parseFloat(document.getElementById('form-val').value.replace(/\./g, '').replace(',', '.'));
+            const type = document.getElementById('form-type').value;
+            const id = document.getElementById('form-id').value;
+            const valStr = document.getElementById('form-val').value;
+            const value = parseFloat(valStr.replace(/\./g, '').replace(',', '.'));
+
             const data = {
                 uid: currentUser.uid,
-                type: document.getElementById('form-type').value,
+                type: type,
                 title: document.getElementById('form-desc').value,
-                value: val,
+                value: value,
                 date: document.getElementById('form-date').value,
                 bank: document.getElementById('form-bank').value,
-                category: document.getElementById('form-cat').value || 'Geral'
             };
-            const id = document.getElementById('form-id').value;
+
+            if(type === 'despesa') {
+                data.category = document.getElementById('form-cat').value;
+                data.definition = document.getElementById('form-def').value;
+            } else { data.origin = data.title; }
+
             if(id) await updateDoc(doc(db, "transacoes_financeiras", id), data);
-            else await addDoc(collection(db, "transacoes_financeiras"), data);
+            else { data.createdAt = Timestamp.now(); await addDoc(collection(db, "transacoes_financeiras"), data); }
             closeModal('modal');
         }
 
