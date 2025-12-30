@@ -1321,7 +1321,7 @@ function updateInterface() {
                 const b = t.bank || 'Carteira';
                 bankMap[b] = (bankMap[b] || 0) + t.value;
             });
-            const sortedBanks = Object.entries(bankMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            const sortedBanks = Object.entries(bankMap).sort((a,b) => b[1] - a[1]);
 
             if(chartInstances.bank) chartInstances.bank.destroy();
             
