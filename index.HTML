@@ -156,13 +156,6 @@
                         <i class="fa-solid fa-chart-line text-lg group-hover:scale-110 transition-transform"></i>
                         <span class="hidden lg:block">Dashboard</span>
                     </button>
-
-<!--
-                    <button onclick="switchView('investimentos')" id="nav-investimentos" class="w-full flex items-center justify-center lg:justify-start gap-4 px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all group">
-                        <i class="fa-solid fa-seedling text-lg group-hover:scale-110 transition-transform"></i>
-                        <span class="hidden lg:block">Investimentos</span>
-                    </button>
-                    -->
                 </nav>
             </div>
 
@@ -270,78 +263,77 @@
 
             <!-- VIEW: DATAGRID -->
             <div id="view-datagrid" class="hidden h-full flex flex-col animate-fade-in">
-                <!-- ... conteúdo da view datagrid ... -->
-            </div>
-
-            <!-- VIEW: INVESTIMENTOS -->
-            <!--
-            <div id="view-investimentos" class="hidden p-8 lg:p-12 max-w-7xl mx-auto animate-slide-up">
-                <header class="mb-10">
-                    <h2 class="font-display text-4xl font-bold text-white">Investimentos</h2>
-                    <p class="text-slate-400 mt-2">Acompanhe suas metas e seu progresso financeiro.</p>
-                </header>
-
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <!-- Coluna da Esquerda: Ações e Progresso -->
-                    <div class="lg:col-span-1 space-y-8">
-                        
-                        <!-- Card Meta de Investimento -->
-                        <div class="glass p-6 rounded-3xl">
-                            <h3 class="font-bold text-white text-lg mb-4 flex items-center gap-3"><i class="fa-solid fa-bullseye text-brand-accent"></i>Meta Mensal</h3>
-                            <p class="text-xs text-slate-400 mb-2">Defina seu objetivo de investimento para o mês atual.</p>
-                            <div class="relative">
-                                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">R$</span>
-                                <input type="text" id="invest-goal" class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white font-bold text-2xl focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all" placeholder="0,00" oninput="formatCurrencyInput(this)">
-                            </div>
-                            <button onclick="saveInvestmentGoal()" class="mt-4 w-full bg-brand-accent hover:bg-blue-600 text-white font-bold py-2 rounded-lg transition-all">Salvar Meta</button>
+                <!-- Header Grid -->
+                <div class="px-8 py-6 border-b border-slate-800 bg-slate-900/50 backdrop-blur flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div>
+                        <h2 class="font-display text-2xl font-bold text-white">Base de Dados</h2>
+                        <p class="text-slate-400 text-sm">Gerenciamento de registros</p>
+                    </div>
+                    <div class="flex gap-4 items-center">
+                        <div class="relative">
+                            <input type="month" id="filter-month" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg px-4 py-2 focus:ring-1 focus:ring-brand-accent focus:border-brand-accent outline-none transition-all cursor-pointer">
                         </div>
-                        
-                        <!-- Card Registrar Aporte -->
-                        <div class="glass p-6 rounded-3xl">
-                            <h3 class="font-bold text-white text-lg mb-4 flex items-center gap-3"><i class="fa-solid fa-circle-plus text-brand-receita"></i>Novo Aporte</h3>
-                            <button onclick="openModal('investimento')" class="w-full bg-brand-receita hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-plus"></i> Registrar Investimento
-                            </button>
+                        <div class="relative">
+                            <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                            <input type="text" id="grid-search" placeholder="Buscar..." class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg pl-9 pr-4 py-2 focus:ring-1 focus:ring-brand-accent focus:border-brand-accent outline-none w-48 lg:w-64 transition-all">
                         </div>
+                        <button onclick="clearAllData()" class="px-4 py-2 bg-slate-800 hover:bg-brand-despesa/20 hover:text-brand-despesa text-slate-400 rounded-lg text-sm font-bold transition-all border border-slate-700">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
 
+                <!-- Tabs -->
+                <div class="px-8 pt-6 flex gap-6 border-b border-slate-800">
+                    <button onclick="switchTableTab('receitas')" id="tab-btn-receitas" class="pb-3 px-2 border-b-2 border-brand-receita text-brand-receita font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-up"></i> Receitas
+                        <span id="tab-badge-rec" class="bg-brand-receita/20 text-brand-receita text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
+                    </button>
+                    <button onclick="switchTableTab('despesas')" id="tab-btn-despesas" class="pb-3 px-2 border-b-2 border-transparent text-slate-500 hover:text-white font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-down"></i> Despesas
+                        <span id="tab-badge-desp" class="bg-slate-800 text-slate-400 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
+                    </button>
+                </div>
+
+                <!-- Tables -->
+                <div class="flex-1 overflow-auto p-8">
+                    <div id="tab-content-receitas" class="h-full flex flex-col glass rounded-2xl overflow-hidden border-t-4 border-t-brand-receita animate-fade-in">
+                        <div class="overflow-auto flex-1">
+                            <table class="w-full text-left text-sm text-slate-400">
+                                <thead class="text-xs uppercase bg-slate-900/80 text-slate-300 sticky top-0 font-bold tracking-wider z-10">
+                                    <tr>
+                                        <th class="px-6 py-4 bg-slate-900/90">Data</th>
+                                        <th class="px-6 py-4 bg-slate-900/90">Origem</th>
+                                        <th class="px-6 py-4 bg-slate-900/90">Banco</th>
+                                        <th class="px-6 py-4 bg-slate-900/90 text-right">Valor</th>
+                                        <th class="px-6 py-4 bg-slate-900/90 text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-receitas" class="divide-y divide-slate-800"></tbody>
+                            </table>
+                        </div>
                     </div>
 
-                    <!-- Coluna da Direita: Gráfico e Histórico -->
-                    <div class="lg:col-span-2 space-y-8">
-                        
-                        <!-- Card Progresso -->
-                        <div class="glass p-6 rounded-3xl">
-                             <h3 class="font-bold text-white text-lg mb-1">Progresso da Meta</h3>
-                             <p id="invest-progress-subtitle" class="text-xs text-slate-400 mb-6 uppercase tracking-wider">Mês atual</p>
-                             <div class="relative w-full h-40">
-                                <canvas id="chart-invest-progress"></canvas>
-                             </div>
+                    <div id="tab-content-despesas" class="hidden h-full flex flex-col glass rounded-2xl overflow-hidden border-t-4 border-t-brand-despesa animate-fade-in">
+                        <div class="overflow-auto flex-1">
+                            <table class="w-full text-left text-sm text-slate-400">
+                                <thead class="text-xs uppercase bg-slate-900/80 text-slate-300 sticky top-0 font-bold tracking-wider z-10">
+                                    <tr>
+                                        <th class="px-6 py-4 bg-slate-900/90">Data</th>
+                                        <th class="px-6 py-4 bg-slate-900/90">Descrição</th>
+                                        <th class="px-6 py-4 bg-slate-900/90">Categoria</th>
+		    <th class="px-6 py-4 bg-slate-900/90">Característica</th>
+                                        <th class="px-6 py-4 bg-slate-900/90">Banco</th>
+                                        <th class="px-6 py-4 bg-slate-900/90 text-right">Valor</th>
+                                        <th class="px-6 py-4 bg-slate-900/90 text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-despesas" class="divide-y divide-slate-800"></tbody>
+                            </table>
                         </div>
-
-                        <!-- Card Histórico -->
-                        <div class="glass p-6 rounded-3xl">
-                            <h3 class="font-bold text-white text-lg mb-4">Histórico de Aportes</h3>
-                            <div class="max-h-96 overflow-y-auto">
-                                <table class="w-full text-left text-sm text-slate-400">
-                                    <thead class="text-xs uppercase bg-slate-900/80 text-slate-300 sticky top-0 font-bold tracking-wider">
-                                        <tr>
-                                            <th class="px-4 py-3">Data</th>
-                                            <th class="px-4 py-3">Descrição</th>
-                                            <th class="px-4 py-3 text-right">Valor</th>
-                                            <th class="px-4 py-3 text-center">Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="tbody-investimentos" class="divide-y divide-slate-800">
-                                        <!-- Linhas de histórico serão inseridas aqui -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
                     </div>
                 </div>
             </div>
-            -->
 
         </main>
     </div>
@@ -1526,7 +1518,7 @@ function updateInterface() {
                 
                 const btnSave = document.getElementById('btn-save');
                 btnSave.textContent = 'Salvar Registro';
-                btnSave.className = `w-full font-bold py-4 rounded-xl shadow-lg shadow-blue-500/20 transition-all mt-4 text-white ${type === 'receita' ? 'bg-brand-receita hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-brand-despesa hover:bg-rose-600 shadow-rose-500/20'}`;
+                btnSave.className = `w-full font-bold py-4 rounded-xl shadow-lg transition-all mt-4 text-white ${type === 'receita' ? 'bg-brand-receita hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-brand-despesa hover:bg-rose-600 shadow-rose-500/20'}`;
                 
                 if(type === 'receita') {
                     document.getElementById('field-cat-container').classList.add('hidden');
