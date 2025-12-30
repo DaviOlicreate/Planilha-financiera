@@ -348,58 +348,88 @@
                         <h2 class="font-display text-4xl font-bold text-white">Carteira de Ativos</h2>
                     </div>
                 </header>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Meta de Investimento -->
-                    <div class="glass p-8 rounded-3xl">
-                        <h3 class="text-xl font-bold text-white mb-4">Meta Mensal de Investimento</h3>
-                        <p class="text-slate-400 text-sm mb-4">Defina um valor que você pretende investir todos os meses.</p>
-                        <div class="relative">
-                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">R$</span>
-                            <input type="text" id="investment-goal" class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-12 pr-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="200,00" oninput="formatCurrencyInput(this)">
-                        </div>
-                        <button onclick="saveInvestmentGoal()" class="mt-4 w-full bg-brand-accent hover:bg-blue-600 text-white font-bold py-3 rounded-xl transition-all">
-                            Salvar Meta
-                        </button>
-                    </div>
 
-                    <!-- Registro de Aporte Mensal -->
-                    <div class="glass p-8 rounded-3xl">
-                        <h3 class="text-xl font-bold text-white mb-4">Registrar Aporte Mensal</h3>
-                        <p class="text-slate-400 text-sm mb-4">Selecione o mês e o valor que você investiu.</p>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Mês</label>
-                                <input type="month" id="investment-month" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Valor Aportado</label>
-                                <div class="relative">
-                                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">R$</span>
-                                    <input type="text" id="investment-amount" class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-12 pr-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="150,00" oninput="formatCurrencyInput(this)">
-                                </div>
-                            </div>
-                        </div>
-                        <button onclick="saveMonthlyInvestment()" class="mt-4 w-full bg-brand-receita hover:bg-emerald-600 text-white font-bold py-3 rounded-xl transition-all">
-                            Registrar Investimento
-                        </button>
+                <!-- Investment KPIs -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="glass p-6 rounded-3xl">
+                        <p class="text-sm text-slate-400">Total Investido</p>
+                        <p id="kpi-total-investido" class="text-3xl font-bold text-white mt-1">R$ 0,00</p>
+                    </div>
+                    <div class="glass p-6 rounded-3xl">
+                        <p class="text-sm text-slate-400">Média de Aportes</p>
+                        <p id="kpi-media-aportes" class="text-3xl font-bold text-white mt-1">R$ 0,00</p>
+                    </div>
+                    <div class="glass p-6 rounded-3xl">
+                        <p class="text-sm text-slate-400">Meta do Mês Atual</p>
+                        <p id="kpi-meta-mes" class="text-3xl font-bold text-white mt-1">0%</p>
                     </div>
                 </div>
-                <div class="glass p-8 rounded-3xl mt-6">
-                    <h3 class="text-xl font-bold text-white mb-4">Histórico de Aportes</h3>
-                    <div class="overflow-auto">
-                        <table class="w-full text-left text-sm text-slate-400">
-                            <thead class="text-xs uppercase bg-slate-900/80 text-slate-300">
-                                <tr>
-                                    <th class="px-6 py-3">Mês</th>
-                                    <th class="px-6 py-3 text-right">Valor Aportado</th>
-                                    <th class="px-6 py-3 text-right">Meta Mensal</th>
-                                    <th class="px-6 py-3 text-center">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="investment-history-body" class="divide-y divide-slate-800">
-                                <!-- Linhas do histórico serão inseridas aqui via JS -->
-                            </tbody>
-                        </table>
+
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                    <!-- Coluna da Esquerda (Configurações e Histórico) -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- Meta de Investimento -->
+                        <div class="glass p-6 rounded-3xl">
+                            <h3 class="text-lg font-bold text-white mb-4">Meta Mensal</h3>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">R$</span>
+                                <input type="text" id="investment-goal" class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-12 pr-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="200,00" oninput="formatCurrencyInput(this)">
+                            </div>
+                             <!-- Progress Bar -->
+                            <div class="w-full bg-slate-700 rounded-full h-2.5 mt-4">
+                              <div id="goal-progress-bar" class="bg-brand-accent h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <button onclick="saveInvestmentGoal()" class="mt-4 w-full bg-brand-accent hover:bg-blue-600 text-white font-bold py-3 rounded-xl transition-all">
+                                Salvar Meta
+                            </button>
+                        </div>
+
+                        <!-- Registro de Aporte Mensal -->
+                        <div class="glass p-6 rounded-3xl">
+                            <h3 class="text-lg font-bold text-white mb-4">Registrar Aporte</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Mês</label>
+                                    <input type="month" id="investment-month" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Valor Aportado</label>
+                                    <div class="relative">
+                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">R$</span>
+                                        <input type="text" id="investment-amount" class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-12 pr-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="150,00" oninput="formatCurrencyInput(this)">
+                                    </div>
+                                </div>
+                            </div>
+                            <button onclick="saveMonthlyInvestment()" class="mt-4 w-full bg-brand-receita hover:bg-emerald-600 text-white font-bold py-3 rounded-xl transition-all">
+                                Registrar Investimento
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Coluna da Direita (Gráfico e Tabela) -->
+                    <div class="lg:col-span-3 space-y-6">
+                        <div class="glass p-6 rounded-3xl">
+                            <h3 class="text-lg font-bold text-white mb-4">Comparativo: Meta vs Aporte Realizado</h3>
+                            <div class="relative h-[300px]"><canvas id="investment-bar-chart"></canvas></div>
+                        </div>
+                         <div class="glass p-6 rounded-3xl">
+                            <h3 class="text-lg font-bold text-white mb-4">Histórico de Aportes</h3>
+                            <div class="overflow-auto max-h-[200px]">
+                                <table class="w-full text-left text-sm text-slate-400">
+                                    <thead class="text-xs uppercase bg-slate-900/80 text-slate-300 sticky top-0">
+                                        <tr>
+                                            <th class="px-6 py-3">Mês</th>
+                                            <th class="px-6 py-3 text-right">Valor Aportado</th>
+                                            <th class="px-6 py-3 text-right">Meta Mensal</th>
+                                            <th class="px-6 py-3 text-center">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="investment-history-body" class="divide-y divide-slate-800">
+                                        <!-- Linhas do histórico serão inseridas aqui via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -858,6 +888,144 @@ const firebaseConfig = {
             localStorage.setItem('monthlyInvestments', JSON.stringify(monthlyInvestments));
         }
 
+        function updateInvestmentKPIs() {
+            const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+            const investmentValues = Object.values(monthlyInvestments);
+
+            // 1. Total Acumulado
+            const totalInvestido = investmentValues.reduce((sum, value) => sum + value, 0);
+            document.getElementById('kpi-total-investido').textContent = fmt(totalInvestido);
+
+            // 2. Média Mensal
+            const count = investmentValues.length;
+            const mediaAportes = count > 0 ? totalInvestido / count : 0;
+            document.getElementById('kpi-media-aportes').textContent = fmt(mediaAportes);
+            
+            // 3. Meta do Mês Atual & Progress Bar
+            const now = new Date();
+            const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const aporteMesAtual = monthlyInvestments[currentMonthKey] || 0;
+            
+            let percMeta = 0;
+            if (investmentGoal > 0) {
+                percMeta = (aporteMesAtual / investmentGoal) * 100;
+            }
+            
+            document.getElementById('kpi-meta-mes').textContent = `${percMeta.toFixed(1)}%`;
+            
+            const progressBar = document.getElementById('goal-progress-bar');
+            progressBar.style.width = `${Math.min(percMeta, 100)}%`;
+            
+            if (percMeta >= 100) {
+                progressBar.classList.remove('bg-brand-accent');
+                progressBar.classList.add('bg-brand-receita');
+            } else {
+                progressBar.classList.add('bg-brand-accent');
+                progressBar.classList.remove('bg-brand-receita');
+            }
+        }
+
+        function renderInvestmentBarChart() {
+            if (chartInstances.investmentBar) {
+                chartInstances.investmentBar.destroy();
+            }
+            const ctx = document.getElementById('investment-bar-chart').getContext('2d');
+
+            const sortedMonths = Object.keys(monthlyInvestments).sort();
+            const last6Months = sortedMonths.slice(-6);
+
+            if (last6Months.length === 0) {
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#64748b';
+                ctx.font = '14px Inter';
+                ctx.fillText('Nenhum aporte registrado para exibir o gráfico.', ctx.canvas.width / 2, ctx.canvas.height / 2);
+                ctx.restore();
+                return;
+            }
+
+            const labels = last6Months.map(month => {
+                const [year, monthNum] = month.split('-');
+                const monthName = new Date(year, monthNum - 1).toLocaleString('pt-BR', { month: 'short' });
+                return `${monthName.toUpperCase()}/${year.slice(2)}`;
+            });
+            
+            const dataRealizado = last6Months.map(month => monthlyInvestments[month]);
+            const dataMeta = last6Months.map(() => investmentGoal);
+
+            const data = {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Meta',
+                        data: dataMeta,
+                        backgroundColor: 'rgba(100, 116, 139, 0.5)',
+                        borderColor: 'rgba(100, 116, 139, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    },
+                    {
+                        label: 'Aporte Realizado',
+                        data: dataRealizado,
+                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    }
+                ]
+            };
+
+            chartInstances.investmentBar = new Chart(ctx, {
+                type: 'bar',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                color: '#94a3b8'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#cbd5e1',
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        },
+                        datalabels: {
+                           display: false
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { color: '#94a3b8' } 
+                        },
+                        x: { 
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8' } 
+                        }
+                    }
+                }
+            });
+        }
+
         function loadInvestmentData() {
             const savedGoal = localStorage.getItem('investmentGoal');
             if (savedGoal) {
@@ -868,8 +1036,8 @@ const firebaseConfig = {
             const savedMonthlyInvestments = localStorage.getItem('monthlyInvestments');
             if (savedMonthlyInvestments) {
                 monthlyInvestments = JSON.parse(savedMonthlyInvestments);
-                updateInvestmentHistory();
             }
+            updateInvestmentHistory();
         }
 
         // --- DATA LOAD ---
@@ -1666,20 +1834,24 @@ function updateInterface() {
             const historyBody = document.getElementById('investment-history-body');
             historyBody.innerHTML = '';
 
-            for (const month in monthlyInvestments) {
+            const sortedMonths = Object.keys(monthlyInvestments).sort((a, b) => b.localeCompare(a));
+
+            for (const month of sortedMonths) {
                 const amount = monthlyInvestments[month];
                 const goal = investmentGoal;
 
                 const tr = document.createElement('tr');
                 tr.className = "table-row-hover border-b border-slate-800 transition-colors";
 
-                const formattedMonth = month.split('-').reverse().join('/');
+                const [year, monthNum] = month.split('-');
+                const monthName = new Date(year, monthNum - 1).toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
+                const formattedMonth = `${monthName}/${year.slice(2)}`;
 
                 let html = `
-                    <td class="px-6 py-4 whitespace-nowrap font-mono text-xs text-slate-500">${formattedMonth}</td>
-                    <td class="px-6 py-4 text-right font-bold text-brand-receita">${amount.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                    <td class="px-6 py-4 text-right font-bold text-slate-400">${goal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                    <td class="px-6 py-4 text-center">
+                    <td class="px-6 py-3 whitespace-nowrap font-mono text-sm text-slate-400">${formattedMonth}</td>
+                    <td class="px-6 py-3 text-right font-bold text-brand-receita">${amount.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td class="px-6 py-3 text-right text-slate-500">${goal > 0 ? goal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-'}</td>
+                    <td class="px-6 py-3 text-center">
                         <button onclick="deleteMonthlyInvestment('${month}')" class="text-slate-600 hover:text-brand-despesa transition-colors" title="Excluir"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 `;
@@ -1687,6 +1859,8 @@ function updateInterface() {
                 tr.innerHTML = html;
                 historyBody.appendChild(tr);
             }
+            updateInvestmentKPIs();
+            renderInvestmentBarChart();
         }
 
         window.deleteMonthlyInvestment = (month) => {
