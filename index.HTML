@@ -156,6 +156,11 @@
                         <i class="fa-solid fa-chart-line text-lg group-hover:scale-110 transition-transform"></i>
                         <span class="hidden lg:block">Dashboard</span>
                     </button>
+
+                    <button onclick="switchView('investimentos')" id="nav-investimentos" class="w-full flex items-center justify-center lg:justify-start gap-4 px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all group">
+                        <i class="fa-solid fa-piggy-bank text-lg group-hover:scale-110 transition-transform"></i>
+                        <span class="hidden lg:block">Área de Investimentos</span>
+                    </button>
                 </nav>
             </div>
 
@@ -331,6 +336,70 @@
                                 <tbody id="tbody-despesas" class="divide-y divide-slate-800"></tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: INVESTIMENTOS -->
+            <div id="view-investimentos" class="hidden p-8 lg:p-12 max-w-7xl mx-auto animate-slide-up">
+                <header class="mb-10 flex justify-between items-end">
+                    <div>
+                        <p class="text-brand-accent font-bold uppercase tracking-wider text-xs mb-1">Seus Investimentos</p>
+                        <h2 class="font-display text-4xl font-bold text-white">Carteira de Ativos</h2>
+                    </div>
+                </header>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Meta de Investimento -->
+                    <div class="glass p-8 rounded-3xl">
+                        <h3 class="text-xl font-bold text-white mb-4">Meta Mensal de Investimento</h3>
+                        <p class="text-slate-400 text-sm mb-4">Defina um valor que você pretende investir todos os meses.</p>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">R$</span>
+                            <input type="text" id="investment-goal" class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-12 pr-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="200,00" oninput="formatCurrencyInput(this)">
+                        </div>
+                        <button onclick="saveInvestmentGoal()" class="mt-4 w-full bg-brand-accent hover:bg-blue-600 text-white font-bold py-3 rounded-xl transition-all">
+                            Salvar Meta
+                        </button>
+                    </div>
+
+                    <!-- Registro de Aporte Mensal -->
+                    <div class="glass p-8 rounded-3xl">
+                        <h3 class="text-xl font-bold text-white mb-4">Registrar Aporte Mensal</h3>
+                        <p class="text-slate-400 text-sm mb-4">Selecione o mês e o valor que você investiu.</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Mês</label>
+                                <input type="month" id="investment-month" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Valor Aportado</label>
+                                <div class="relative">
+                                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">R$</span>
+                                    <input type="text" id="investment-amount" class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-12 pr-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="150,00" oninput="formatCurrencyInput(this)">
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="saveMonthlyInvestment()" class="mt-4 w-full bg-brand-receita hover:bg-emerald-600 text-white font-bold py-3 rounded-xl transition-all">
+                            Registrar Investimento
+                        </button>
+                    </div>
+                </div>
+                <div class="glass p-8 rounded-3xl mt-6">
+                    <h3 class="text-xl font-bold text-white mb-4">Histórico de Aportes</h3>
+                    <div class="overflow-auto">
+                        <table class="w-full text-left text-sm text-slate-400">
+                            <thead class="text-xs uppercase bg-slate-900/80 text-slate-300">
+                                <tr>
+                                    <th class="px-6 py-3">Mês</th>
+                                    <th class="px-6 py-3 text-right">Valor Aportado</th>
+                                    <th class="px-6 py-3 text-right">Meta Mensal</th>
+                                    <th class="px-6 py-3 text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="investment-history-body" class="divide-y divide-slate-800">
+                                <!-- Linhas do histórico serão inseridas aqui via JS -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -618,6 +687,9 @@ const firebaseConfig = {
             goalSavings: 20
         };
 
+        let investmentGoal = 0;
+        let monthlyInvestments = {};
+
         // --- AUTH ---
         onAuthStateChanged(auth, async (user) => {
             if(user) {
@@ -628,6 +700,7 @@ const firebaseConfig = {
                 document.getElementById('user-avatar').src = user.photoURL || "https://ui-avatars.com/api/?name=User&background=3b82f6&color=fff";
                 await initSettings();
                 loadData();
+                loadInvestmentData();
             } else {
                 currentUser = null;
                 document.getElementById('login-screen').classList.remove('hidden');
@@ -778,6 +851,25 @@ const firebaseConfig = {
             input.addEventListener('input', () => {
                 if(input.value !== '') previousValue = input.value;
             });
+        }
+
+        function saveInvestmentData() {
+            localStorage.setItem('investmentGoal', investmentGoal);
+            localStorage.setItem('monthlyInvestments', JSON.stringify(monthlyInvestments));
+        }
+
+        function loadInvestmentData() {
+            const savedGoal = localStorage.getItem('investmentGoal');
+            if (savedGoal) {
+                investmentGoal = parseFloat(savedGoal);
+                document.getElementById('investment-goal').value = investmentGoal.toFixed(2).replace('.', ',');
+            }
+
+            const savedMonthlyInvestments = localStorage.getItem('monthlyInvestments');
+            if (savedMonthlyInvestments) {
+                monthlyInvestments = JSON.parse(savedMonthlyInvestments);
+                updateInvestmentHistory();
+            }
         }
 
         // --- DATA LOAD ---
@@ -1473,11 +1565,19 @@ function updateInterface() {
 
         // --- NAVIGATION & MODALS ---
         window.switchView = (viewName) => {
-            ['home', 'datagrid'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
+            ['home', 'datagrid', 'investimentos'].forEach(v => {
+                const viewEl = document.getElementById(`view-${v}`);
+                if(viewEl) viewEl.classList.add('hidden');
+            });
             document.getElementById(`view-${viewName}`).classList.remove('hidden');
             
-            document.getElementById('nav-home').classList.remove('text-brand-accent', 'bg-slate-800/50');
-            document.getElementById('nav-datagrid').classList.remove('text-brand-accent', 'bg-slate-800/50');
+            ['home', 'datagrid', 'investimentos'].forEach(v => {
+                 const navEl = document.getElementById(`nav-${v}`);
+                 if(navEl) {
+                    navEl.classList.remove('text-brand-accent', 'bg-slate-800/50');
+                    navEl.classList.add('text-slate-400');
+                 }
+            });
             
             document.getElementById(`nav-${viewName}`).classList.add('text-brand-accent', 'bg-slate-800/50');
             document.getElementById(`nav-${viewName}`).classList.remove('text-slate-400');
@@ -1537,6 +1637,64 @@ function updateInterface() {
         }
         window.closeModal = (modalId) => {
             document.getElementById(modalId).classList.add('hidden');
+        }
+
+        window.saveInvestmentGoal = () => {
+            const goalValue = document.getElementById('investment-goal').value;
+            investmentGoal = parseFloat(goalValue.replace(/\./g, '').replace(',', '.'));
+            saveInvestmentData();
+            alert(`Meta de investimento salva: R$ ${goalValue}`);
+            updateInvestmentHistory();
+        }
+
+        window.saveMonthlyInvestment = () => {
+            const month = document.getElementById('investment-month').value;
+            const amountValue = document.getElementById('investment-amount').value;
+            const amount = parseFloat(amountValue.replace(/\./g, '').replace(',', '.'));
+
+            if (month && amount) {
+                monthlyInvestments[month] = amount;
+                saveInvestmentData();
+                alert(`Investimento de R$ ${amountValue} registrado para o mês ${month}`);
+                updateInvestmentHistory();
+            } else {
+                alert('Por favor, selecione o mês e o valor do investimento.');
+            }
+        }
+
+        function updateInvestmentHistory() {
+            const historyBody = document.getElementById('investment-history-body');
+            historyBody.innerHTML = '';
+
+            for (const month in monthlyInvestments) {
+                const amount = monthlyInvestments[month];
+                const goal = investmentGoal;
+
+                const tr = document.createElement('tr');
+                tr.className = "table-row-hover border-b border-slate-800 transition-colors";
+
+                const formattedMonth = month.split('-').reverse().join('/');
+
+                let html = `
+                    <td class="px-6 py-4 whitespace-nowrap font-mono text-xs text-slate-500">${formattedMonth}</td>
+                    <td class="px-6 py-4 text-right font-bold text-brand-receita">${amount.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td class="px-6 py-4 text-right font-bold text-slate-400">${goal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td class="px-6 py-4 text-center">
+                        <button onclick="deleteMonthlyInvestment('${month}')" class="text-slate-600 hover:text-brand-despesa transition-colors" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                `;
+
+                tr.innerHTML = html;
+                historyBody.appendChild(tr);
+            }
+        }
+
+        window.deleteMonthlyInvestment = (month) => {
+            if (confirm(`Tem certeza que deseja excluir o investimento do mês ${month}?`)) {
+                delete monthlyInvestments[month];
+                saveInvestmentData();
+                updateInvestmentHistory();
+            }
         }
 
         document.getElementById('form-transaction').addEventListener('submit', async (e) => {
