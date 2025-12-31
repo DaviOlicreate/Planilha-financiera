@@ -657,16 +657,20 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="md:col-span-1">
                         <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Banco / Instituição</label>
                         <input type="text" id="form-bank" list="bank-list" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="Selecione ou digite...">
                         <datalist id="bank-list"></datalist>
                     </div>
-                    <div id="field-cat-container">
+                    <div id="field-cat-container" class="md:col-span-1">
                         <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Categoria</label>
                         <input type="text" id="form-cat" list="cat-list" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="Selecione ou digite...">
                         <datalist id="cat-list"></datalist>
+                    </div>
+                    <div id="field-installments-container" class="md:col-span-1">
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Parcelas</label>
+                        <input type="number" id="form-installments" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all" placeholder="1" min="1" value="1">
                     </div>
                 </div>
 
@@ -1713,6 +1717,7 @@ function updateInterface() {
             if(item.type === 'despesa') {
                 document.getElementById('form-cat').value = item.category;
                 document.getElementById('form-def').value = item.definition;
+                document.getElementById('field-installments-container').classList.add('hidden');
             }
 
             document.getElementById('modal-title').textContent = `Editar ${item.type === 'receita' ? 'Receita' : 'Despesa'}`;
@@ -1791,9 +1796,11 @@ function updateInterface() {
                 if(type === 'receita') {
                     document.getElementById('field-cat-container').classList.add('hidden');
                     document.getElementById('field-def-container').classList.add('hidden');
+                    document.getElementById('field-installments-container').classList.add('hidden');
                 } else {
                     document.getElementById('field-cat-container').classList.remove('hidden');
                     document.getElementById('field-def-container').classList.remove('hidden');
+                    document.getElementById('field-installments-container').classList.remove('hidden');
                 }
                 
                 if(!document.getElementById('form-id').value) {
@@ -1875,30 +1882,65 @@ function updateInterface() {
             e.preventDefault();
             const type = document.getElementById('form-type').value;
             const id = document.getElementById('form-id').value;
-
             const valStr = document.getElementById('form-val').value;
-            const value = parseFloat(valStr.replace(/\./g, '').replace(',', '.'));
+            const totalValue = parseFloat(valStr.replace(/\./g, '').replace(',', '.'));
 
-            const data = {
-                uid: currentUser.uid,
-                type: type,
-                title: document.getElementById('form-desc').value,
-                value: value,
-                date: document.getElementById('form-date').value,
-                bank: document.getElementById('form-bank').value,
-            };
-
-            if(!id) data.createdAt = Timestamp.now();
-
-            if(type === 'despesa') {
-                data.category = document.getElementById('form-cat').value;
-                data.definition = document.getElementById('form-def').value;
+            if (id) {
+                const data = {
+                    uid: currentUser.uid,
+                    type: type,
+                    title: document.getElementById('form-desc').value,
+                    value: totalValue,
+                    date: document.getElementById('form-date').value,
+                    bank: document.getElementById('form-bank').value,
+                };
+                if(type === 'despesa') {
+                    data.category = document.getElementById('form-cat').value;
+                    data.definition = document.getElementById('form-def').value;
+                } else {
+                    data.origin = data.title; 
+                }
+                await updateDoc(doc(db, "transacoes_financeiras", id), data);
             } else {
-                data.origin = data.title; 
-            }
+                const installments = parseInt(document.getElementById('form-installments').value) || 1;
+                const installmentValue = installments > 0 ? totalValue / installments : totalValue;
+                const originalDesc = document.getElementById('form-desc').value;
+                const formDate = document.getElementById('form-date').value;
+                const dateParts = formDate.split('-');
+                const startDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
 
-            if(id) await updateDoc(doc(db, "transacoes_financeiras", id), data);
-            else await addDoc(collection(db, "transacoes_financeiras"), data);
+                const batch = writeBatch(db);
+
+                for (let i = 0; i < installments; i++) {
+                    const targetYear = startDate.getFullYear() + Math.floor((startDate.getMonth() + i) / 12);
+                    const targetMonth = (startDate.getMonth() + i) % 12;
+                    const originalDay = startDate.getDate();
+                    const lastDayOfTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+                    const finalDay = Math.min(originalDay, lastDayOfTargetMonth);
+                    const installmentDate = new Date(targetYear, targetMonth, finalDay);
+                    
+                    const data = {
+                        uid: currentUser.uid,
+                        type: type,
+                        title: installments > 1 ? `${originalDesc} (${i + 1}/${installments})` : originalDesc,
+                        value: installmentValue,
+                        date: installmentDate.toISOString().split('T')[0],
+                        bank: document.getElementById('form-bank').value,
+                        createdAt: Timestamp.now()
+                    };
+
+                    if(type === 'despesa') {
+                        data.category = document.getElementById('form-cat').value;
+                        data.definition = document.getElementById('form-def').value;
+                    } else {
+                        data.origin = data.title; 
+                    }
+                    
+                    const docRef = doc(collection(db, "transacoes_financeiras"));
+                    batch.set(docRef, data);
+                }
+                await batch.commit();
+            }
             
             closeModal('modal');
             document.getElementById('form-transaction').reset();
