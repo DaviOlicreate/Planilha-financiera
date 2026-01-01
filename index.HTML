@@ -737,7 +737,7 @@ const firebaseConfig = {
                 document.getElementById('user-avatar').src = user.photoURL || "https://ui-avatars.com/api/?name=User&background=3b82f6&color=fff";
                 await initSettings();
                 loadData();
-                loadInvestmentData();
+                await loadInvestmentData();
             } else {
                 currentUser = null;
                 document.getElementById('login-screen').classList.remove('hidden');
@@ -890,9 +890,13 @@ const firebaseConfig = {
             });
         }
 
-        function saveInvestmentData() {
-            localStorage.setItem('investmentGoal', investmentGoal);
-            localStorage.setItem('monthlyInvestments', JSON.stringify(monthlyInvestments));
+        async function saveInvestmentData() {
+            if(!currentUser) return;
+            const dataToSave = {
+                investmentGoal: investmentGoal,
+                monthlyInvestments: monthlyInvestments
+            };
+            await setDoc(doc(db, "user_settings", currentUser.uid), dataToSave, {merge: true});
         }
 
         function updateInvestmentKPIs() {
@@ -1033,17 +1037,22 @@ const firebaseConfig = {
             });
         }
 
-        function loadInvestmentData() {
-            const savedGoal = localStorage.getItem('investmentGoal');
-            if (savedGoal) {
-                investmentGoal = parseFloat(savedGoal);
-                document.getElementById('investment-goal').value = investmentGoal.toFixed(2).replace('.', ',');
-            }
+        async function loadInvestmentData() {
+            if(!currentUser) return;
+            const ref = doc(db, "user_settings", currentUser.uid);
+            const snap = await getDoc(ref);
 
-            const savedMonthlyInvestments = localStorage.getItem('monthlyInvestments');
-            if (savedMonthlyInvestments) {
-                monthlyInvestments = JSON.parse(savedMonthlyInvestments);
+            if (snap.exists()) {
+                const data = snap.data();
+                if (data.investmentGoal) {
+                    investmentGoal = data.investmentGoal;
+                    document.getElementById('investment-goal').value = investmentGoal.toFixed(2).replace('.', ',');
+                }
+                if (data.monthlyInvestments) {
+                    monthlyInvestments = data.monthlyInvestments;
+                }
             }
+            // Always update history, even if there's no data (to clear the view)
             updateInvestmentHistory();
         }
 
@@ -1856,26 +1865,32 @@ function updateInterface() {
             document.getElementById(modalId).classList.add('hidden');
         }
 
-        window.saveInvestmentGoal = () => {
+        window.saveInvestmentGoal = async () => {
             const goalValue = document.getElementById('investment-goal').value;
-            investmentGoal = parseFloat(goalValue.replace(/\./g, '').replace(',', '.'));
-            saveInvestmentData();
+            const parsedGoal = parseFloat(goalValue.replace(/\./g, '').replace(',', '.'));
+            if (isNaN(parsedGoal)) {
+                alert('Por favor, insira um valor de meta válido.');
+                return;
+            }
+
+            investmentGoal = parsedGoal;
+            await saveInvestmentData();
             alert(`Meta de investimento salva: R$ ${goalValue}`);
             updateInvestmentHistory();
         }
 
-        window.saveMonthlyInvestment = () => {
+        window.saveMonthlyInvestment = async () => {
             const month = document.getElementById('investment-month').value;
             const amountValue = document.getElementById('investment-amount').value;
             const amount = parseFloat(amountValue.replace(/\./g, '').replace(',', '.'));
 
-            if (month && amount) {
+            if (month && !isNaN(amount)) {
                 monthlyInvestments[month] = amount;
-                saveInvestmentData();
+                await saveInvestmentData();
                 alert(`Investimento de R$ ${amountValue} registrado para o mês ${month}`);
                 updateInvestmentHistory();
             } else {
-                alert('Por favor, selecione o mês e o valor do investimento.');
+                alert('Por favor, selecione o mês e um valor de investimento válido.');
             }
         }
 
@@ -1912,10 +1927,10 @@ function updateInterface() {
             renderInvestmentBarChart();
         }
 
-        window.deleteMonthlyInvestment = (month) => {
+        window.deleteMonthlyInvestment = async (month) => {
             if (confirm(`Tem certeza que deseja excluir o investimento do mês ${month}?`)) {
                 delete monthlyInvestments[month];
-                saveInvestmentData();
+                await saveInvestmentData();
                 updateInvestmentHistory();
             }
         }
