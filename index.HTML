@@ -282,6 +282,9 @@
                             <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
                             <input type="text" id="grid-search" placeholder="Buscar..." class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg pl-9 pr-4 py-2 focus:ring-1 focus:ring-brand-accent focus:border-brand-accent outline-none w-48 lg:w-64 transition-all">
                         </div>
+                        <button onclick="downloadExcel()" class="px-4 py-2 bg-slate-800 hover:bg-brand-receita/20 hover:text-brand-receita text-slate-400 rounded-lg text-sm font-bold transition-all border border-slate-700" title="Baixar Excel">
+                            <i class="fa-solid fa-file-arrow-down"></i>
+                        </button>
                         <button onclick="clearAllData()" class="px-4 py-2 bg-slate-800 hover:bg-brand-despesa/20 hover:text-brand-despesa text-slate-400 rounded-lg text-sm font-bold transition-all border border-slate-700">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
@@ -1734,6 +1737,45 @@ function updateInterface() {
             const batch = writeBatch(db);
             transactions.forEach(t => batch.delete(doc(db, "transacoes_financeiras", t.id)));
             await batch.commit();
+        }
+
+        window.downloadExcel = () => {
+            // Use all transactions, ignoring filters.
+            const tableData = transactions;
+
+            const receitas = tableData.filter(t => t.type === 'receita').map(t => ({
+                Data: t.date,
+                Origem: t.title,
+                Banco: t.bank,
+                Valor: t.value
+            }));
+
+            const despesas = tableData.filter(t => t.type === 'despesa').map(t => ({
+                Data: t.date,
+                Descrição: t.title,
+                Categoria: t.category,
+                Característica: t.definition,
+                Banco: t.bank,
+                Valor: t.value
+            }));
+
+            const wb = XLSX.utils.book_new();
+            const wsReceitas = XLSX.utils.json_to_sheet(receitas, {
+                header: ["Data", "Origem", "Banco", "Valor"]
+            });
+            const wsDespesas = XLSX.utils.json_to_sheet(despesas, {
+                header: ["Data", "Descrição", "Categoria", "Característica", "Banco", "Valor"]
+            });
+
+            // Adicionar formatação de moeda
+            const currencyFormat = 'R$ #,##0.00';
+            wsReceitas['!cols'] = [ {wch:12}, {wch:30}, {wch:15}, {wch:12, z: currencyFormat} ];
+            wsDespesas['!cols'] = [ {wch:12}, {wch:30}, {wch:15}, {wch:15}, {wch:15}, {wch:12, z: currencyFormat} ];
+
+            XLSX.utils.book_append_sheet(wb, wsReceitas, "Receitas");
+            XLSX.utils.book_append_sheet(wb, wsDespesas, "Despesas");
+
+            XLSX.writeFile(wb, `financeiro_pro_banco_completo.xlsx`);
         }
 
         // --- NAVIGATION & MODALS ---
