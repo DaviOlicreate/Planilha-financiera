@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR" class="dark">
 <head>
@@ -262,6 +263,32 @@
                         <h3 class="text-white font-bold">Importar Excel</h3>
                         <p id="import-status" class="text-xs text-slate-400 mt-1">Clique para carregar planilha</p>
                     </label>
+
+                    <!-- IA ASSISTANT -->
+                    <div class="menu-card glass p-8 rounded-3xl col-span-1 md:col-span-2 lg:col-span-3">
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold text-white">Assistente IA</h3>
+                                <p class="text-slate-400 text-sm">Faça perguntas sobre seus dados financeiros.</p>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <input type="text" id="ai-question" class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-4 pr-28 py-3 text-white focus:border-brand-accent focus:ring-1 focus:ring-brand-accent outline-none transition-all placeholder:text-slate-600" placeholder="Ex: Qual foi meu maior gasto este mês?">
+                            <button onclick="askAI()" id="ai-submit-btn" class="absolute right-2 top-1/2 -translate-y-1/2 bg-brand-accent hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-all flex items-center gap-2">
+                                <span id="ai-btn-text">Perguntar</span>
+                                <i id="ai-btn-icon" class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <div id="ai-response-container" class="mt-4 hidden">
+                            <p class="text-sm font-bold text-slate-300 mb-2">Resposta:</p>
+                            <div class="glass p-4 rounded-lg bg-slate-900/50 border border-slate-700 max-h-60 overflow-y-auto">
+                                <pre id="ai-response" class="text-sm text-slate-300 whitespace-pre-wrap font-sans"></pre>
+                            </div>
+                        </div>
+                    </div>
 
                 </div>
             </div>
@@ -2095,6 +2122,97 @@ function updateInterface() {
         document.getElementById('current-date').textContent = now.toLocaleDateString('pt-BR', {weekday: 'long', day: 'numeric', month: 'long'});
         const currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
         document.getElementById('filter-month').value = currentMonth;
+
+        // --- GEMINI AI ASSISTANT ---
+        const GEMINI_API_KEY = "AIzaSyBYc7wxs4I7CroDUH-sS9a757WmpnNb6jc";
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+        async function askAI() {
+            const question = document.getElementById('ai-question').value;
+            if (!question) {
+                alert("Por favor, digite uma pergunta.");
+                return;
+            }
+
+            if (GEMINI_API_KEY === "SUA_CHAVE_API_AQUI") {
+                alert("Por favor, adicione sua chave da API do Gemini no código para usar esta funcionalidade.");
+                return;
+            }
+            
+            const responseContainer = document.getElementById('ai-response-container');
+            const responseEl = document.getElementById('ai-response');
+            const submitBtn = document.getElementById('ai-submit-btn');
+            const btnText = document.getElementById('ai-btn-text');
+            const btnIcon = document.getElementById('ai-btn-icon');
+
+            // --- UI Loading State ---
+            responseContainer.classList.remove('hidden');
+            responseEl.textContent = 'Pensando...';
+            submitBtn.disabled = true;
+            btnText.textContent = 'Aguarde';
+            btnIcon.className = 'fa-solid fa-spinner fa-spin';
+
+            // --- Prepare Data and Prompt ---
+            // Convert only essential data to JSON to save tokens
+            const dataForAI = transactions.map(t => ({
+                type: t.type,
+                title: t.title,
+                value: t.value,
+                date: t.date,
+                category: t.category,
+                bank: t.bank
+            }));
+
+            const prompt = `
+                Você é um assistente financeiro e analista de dados. Sua tarefa é responder à pergunta do usuário com base nos dados financeiros fornecidos em formato JSON.
+                Seja claro, objetivo e baseie-se SOMENTE nos dados. Formate sua resposta de forma clara usando markdown leve (negrito, listas).
+                Realize cálculos como somas, médias, etc., se a pergunta exigir.
+                A data de hoje é: ${new Date().toLocaleDateString('pt-BR')}.
+
+                **Dados Financeiros (JSON):**
+                \`\`\`json
+                ${JSON.stringify(dataForAI, null, 2)}
+                \`\`\`
+
+                **Pergunta do Usuário:**
+                "${question}"
+            `;
+
+            try {
+                const response = await fetch(GEMINI_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: {
+                          temperature: 0.2,
+                          maxOutputTokens: 500
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`API Error: ${errorData.error.message}`);
+                }
+
+                const data = await response.json();
+                const aiText = data.candidates[0].content.parts[0].text;
+                responseEl.textContent = aiText;
+
+            } catch (error) {
+                console.error("Erro ao chamar a API do Gemini:", error);
+                responseEl.textContent = `Ocorreu um erro: ${error.message}\n\nVerifique o console para mais detalhes e se sua API Key está correta.`;
+            } finally {
+                // --- UI Restore State ---
+                submitBtn.disabled = false;
+                btnText.textContent = 'Perguntar';
+                btnIcon.className = 'fa-solid fa-paper-plane';
+            }
+        }
+        
+        // Expose function to global scope
+        window.askAI = askAI;
 
     </script>
 </body>
